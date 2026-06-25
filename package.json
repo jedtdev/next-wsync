@@ -1,0 +1,70 @@
+{
+  "name": "next-wsync",
+  "version": "0.1.0",
+  "description": "Typed channel-based WebSocket layer built on top of next-ws",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js",
+      "require": "./dist/client.cjs"
+    }
+  },
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "prepublishOnly": "npm run build",
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "playground:dev": "npm run dev --prefix playground",
+    "playground:build": "npm run build --prefix playground",
+    "playground:start": "npm run start --prefix playground"
+  },
+  "dependencies": {
+    "croner": "^9.0.0",
+    "ioredis": "^5.0.0"
+  },
+  "peerDependencies": {
+    "next": ">=14",
+    "next-ws": ">=2",
+    "react": ">=18",
+    "ws": "^8",
+    "zod": ">=3"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/ws": "^8",
+    "@vitest/coverage-v8": "^3",
+    "next": "^15",
+    "next-ws": "^2",
+    "tsup": "^8",
+    "typescript": "^5",
+    "vitest": "^3",
+    "ws": "^8",
+    "zod": "^3"
+  },
+  "keywords": [
+    "websocket",
+    "nextjs",
+    "realtime",
+    "next-ws",
+    "typed",
+    "channels"
+  ]
+}
