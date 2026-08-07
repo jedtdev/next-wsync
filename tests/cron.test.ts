@@ -1,10 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { WebSocketServer } from 'ws';
 import { cron } from '../core/cron';
 import { symbols } from '../core/constants';
 
-// Minimal mock WebSocketServer — cron only uses it for broadcast,
-// which we're not testing here, so an empty clients Map suffices.
 function mockServer(): WebSocketServer {
   return {
     clients: new Map(),
@@ -66,16 +64,14 @@ describe('cron()', () => {
   });
 
   it('job runs on schedule and last is populated', async () => {
-    // Use a cron expression that fires every second
     const runFn = vi.fn();
     const job = cron('every-second', {
-      schedule: { expression: '* * * * * *' }, // every second (croner supports 6-field)
+      schedule: { expression: '* * * * * *' },
       run: runFn,
     });
 
     job[symbols.cron].start(mockServer());
 
-    // Wait up to 1.5s for at least one tick
     await new Promise<void>((resolve) => {
       const start = Date.now();
       const interval = setInterval(() => {
@@ -98,7 +94,6 @@ describe('cron()', () => {
 
     job[symbols.cron].start(mockServer());
 
-    // Wait for at least one run to complete
     await new Promise<void>((resolve) => {
       const start = Date.now();
       const interval = setInterval(() => {
@@ -129,7 +124,6 @@ describe('cron()', () => {
 
     job[symbols.cron].start(mockServer());
 
-    // Wait for the error callback
     await new Promise<void>((resolve) => {
       const start = Date.now();
       const interval = setInterval(() => {
@@ -181,7 +175,7 @@ describe('cron()', () => {
 
     const server = mockServer();
     job[symbols.cron].start(server);
-    job[symbols.cron].start(server); // should be a no-op
+    job[symbols.cron].start(server);
 
     expect(job.isRunning()).toBe(true);
     job.stop();

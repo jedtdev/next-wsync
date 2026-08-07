@@ -6,3 +6,5 @@ coverage/
 .env.*
 .claude
 .next
+playground/
+.agents/

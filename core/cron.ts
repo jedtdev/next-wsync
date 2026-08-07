@@ -13,10 +13,12 @@ import type {
 import { isExcluded, matchesSelector, sendEvent } from './utils';
 import { symbols } from './constants';
 
-export type Schedule = {
-  expression: string;
-  tz?: string;
-};
+export type Schedule =
+  | string
+  | {
+      expression: string;
+      tz?: string;
+    };
 
 export interface CronJobLast {
   arguments: null;
@@ -28,6 +30,7 @@ export interface CronInternals {
   channelName: string | null;
   pubsub: boolean;
   stores: unknown;
+  running: boolean;
   start(server: WebSocketServer, adapter?: PubSubAdapter): void;
   stop(): void;
 }
@@ -42,15 +45,15 @@ export interface CronJob<TName extends string = string, TEmit = unknown> {
   last: CronJobLast | null;
 }
 
-// JobContext — only used by standalone cron(), not channel crons
-export interface JobContext<TEmit, TStores> {
+// JobContext — used by standalone cron(), not channel crons
+export interface JobContext<TEmit = unknown, TStores = unknown> {
   server: WebSocketServer;
   channel: string | null;
   stores: TStores;
   broadcast: {
-    all(data: TEmit, opts?: BroadcastOptions): void;
-    to(selector: QuerySelector, data: TEmit, opts?: BroadcastOptions): void;
-    except(selector: QuerySelector, data: TEmit): void;
+    all(data: TEmit, opts?: BroadcastOptions): Promise<void>;
+    to(selector: QuerySelector, data: TEmit, opts?: BroadcastOptions): Promise<void>;
+    except(selector: QuerySelector, data: TEmit): Promise<void>;
   };
   stop(): void;
 }
@@ -82,14 +85,20 @@ export function cron<
     channelName: null,
     pubsub: false,
     stores: {} as TStores,
+    get running() {
+      return cronInstance?.isRunning() ?? false;
+    },
 
     start(server, adapter) {
       if (cronInstance) return;
       serverRef = server;
       adapterRef = adapter;
+      const expr = typeof def.schedule === 'string' ? def.schedule : def.schedule.expression;
+      const tz = typeof def.schedule === 'string' ? undefined : def.schedule.tz;
+
       cronInstance = new Cron(
-        def.schedule.expression,
-        def.schedule.tz ? { timezone: def.schedule.tz } : undefined,
+        expr,
+        tz ? { timezone: tz } : undefined,
         safeRun,
       );
     },
@@ -100,94 +109,88 @@ export function cron<
     },
   };
 
-  function buildContext(): JobContext<TEmit, TStores> {
-    if (!serverRef) throw new Error(`[cron:${name}] job fired before server init`);
-    const ch = internals.channelName;
-    const server = serverRef;
+  let lastRun: CronJobLast | null = null;
 
+  function buildJobCtx(server: WebSocketServer): JobContext<TEmit, TStores> {
     return {
       server,
-      channel: ch,
+      channel: null,
       stores: internals.stores as TStores,
-      stop() { internals.stop(); },
       broadcast: {
-        all(data, opts) {
-          for (const client of server.clients as Set<WebSocket>) {
-            if (!ch || client.meta?.['channel'] === ch) {
-              if (!isExcluded(opts, client)) sendEvent(client, data);
+        async all(data, opts) {
+          server.clients.forEach((c) => {
+            if (c.readyState === WebSocket.OPEN && !isExcluded(opts, c)) sendEvent(c, data);
+          });
+        },
+        async to(selector, data, opts) {
+          server.clients.forEach((c) => {
+            if (c.readyState === WebSocket.OPEN && matchesSelector(selector, c) && !isExcluded(opts, c)) {
+              sendEvent(c, data);
             }
-          }
-          if (internals.pubsub && ch && adapterRef) {
-            void adapterRef.publish(ch, { type: 'all', data, opts });
-          }
+          });
         },
-        to(selector, data, opts) {
-          for (const client of server.clients as Set<WebSocket>) {
-            if ((!ch || client.meta?.['channel'] === ch) && matchesSelector(selector, client) && !isExcluded(opts, client))
-              sendEvent(client, data);
-          }
-          if (internals.pubsub && ch && adapterRef) {
-            void adapterRef.publish(ch, { type: 'to', selector, data, opts });
-          }
-        },
-        except(selector, data) {
-          for (const client of server.clients as Set<WebSocket>) {
-            if (!ch || client.meta?.['channel'] === ch) {
-              if (!matchesSelector(selector, client)) sendEvent(client, data);
+        async except(selector, data) {
+          server.clients.forEach((c) => {
+            if (c.readyState === WebSocket.OPEN && !matchesSelector(selector, c)) {
+              sendEvent(c, data);
             }
-          }
-          if (internals.pubsub && ch && adapterRef) {
-            void adapterRef.publish(ch, { type: 'except', selector, data });
-          }
+          });
         },
+      },
+      stop() {
+        internals.stop();
       },
     };
   }
 
-  function safeRun(): void {
-    if (running) return;
-    running = true;
+  async function safeRun(): Promise<void> {
+    if (!serverRef) return;
     const started = new Date();
-
-    Promise.resolve()
-      .then(() => def.run(buildContext()))
-      .then(() => {
-        const finished = new Date();
-        job.last = {
-          arguments: null,
-          error: null,
-          timestamps: { started, finished, durationMs: finished.getTime() - started.getTime() },
-        };
-      })
-      .catch((err: unknown) => {
-        const finished = new Date();
-        const error = err instanceof Error ? err : new Error(String(err));
-        job.last = {
-          arguments: null,
-          error,
-          timestamps: { started, finished, durationMs: finished.getTime() - started.getTime() },
-        };
-        if (def.onError) {
-          try { void Promise.resolve(def.onError(buildContext(), error)); } catch { /* protect loop */ }
+    try {
+      await def.run(buildJobCtx(serverRef));
+      const finished = new Date();
+      lastRun = {
+        arguments: null,
+        error: null,
+        timestamps: { started, finished, durationMs: finished.getTime() - started.getTime() },
+      };
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      const finished = new Date();
+      lastRun = {
+        arguments: null,
+        error,
+        timestamps: { started, finished, durationMs: finished.getTime() - started.getTime() },
+      };
+      if (def.onError && serverRef) {
+        try {
+          await def.onError(buildJobCtx(serverRef), error);
+        } catch {
+          // Suppress error in onError
         }
-        console.error(`[cron:${name}]`, error);
-      })
-      .finally(() => { running = false; });
+      }
+    }
   }
 
-  const job: CronJob<TName, TEmit> = {
+  return {
     name,
     [symbols.cron]: internals,
-    last: null,
-    stop() { cronInstance?.stop(); cronInstance = null; },
-    isRunning() { return cronInstance !== null; },
-    nextRun() { return cronInstance?.nextRun() ?? null; },
+    stop() {
+      internals.stop();
+    },
+    isRunning() {
+      return cronInstance?.isRunning() ?? false;
+    },
+    nextRun() {
+      return cronInstance?.nextRun() ?? null;
+    },
+    get last() {
+      return lastRun;
+    },
   };
-
-  return job;
 }
 
-// ── createChannelCron() — used internally by channel().cron() ─────
+// ── Internal helper for channel crons ─────────────────────────
 
 export function createChannelCron<
   TName extends string,
@@ -205,23 +208,31 @@ export function createChannelCron<
   adapterRef(): PubSubAdapter | undefined;
   run(ctx: CronContext<TName, TEmit, TStores, TMeta>): void | Promise<void>;
   onError?(ctx: CronContext<TName, TEmit, TStores, TMeta>, err: Error): void | Promise<void>;
-}): CronJob {
+}): CronJob<string, TEmit> {
   let cronInstance: Cron | null = null;
   let running = false;
+  let lastRun: CronJobLast | null = null;
 
   function buildClientsAccessor(server: WebSocketServer): ClientsAccessor<TEmit, TMeta> {
     const pool = () => opts.getChannelClients(server);
     return {
-      get size() { return pool().size; },
+      get size() {
+        return pool().size;
+      },
       find(selector) {
         const result: WebSocket[] = [];
-        for (const c of pool()) if (matchesSelector(selector as QuerySelector, c)) result.push(c);
+        for (const c of pool()) {
+          if (matchesSelector(selector as QuerySelector, c)) result.push(c);
+        }
         return result;
       },
       send(selector, data) {
         const matched: WebSocket[] = [];
         for (const c of pool()) {
-          if (matchesSelector(selector as QuerySelector, c)) { sendEvent(c, data); matched.push(c); }
+          if (matchesSelector(selector as QuerySelector, c)) {
+            sendEvent(c, data);
+            matched.push(c);
+          }
         }
         return matched;
       },
@@ -254,31 +265,31 @@ export function createChannelCron<
     const ch = opts.channelName;
 
     return {
-      all(data, broadcastOpts) {
+      async all(data, broadcastOpts) {
         for (const c of pool()) {
           if (c.readyState === WebSocket.OPEN && !isExcluded(broadcastOpts, c)) sendEvent(c, data);
         }
         const adp = opts.adapterRef();
-        if (opts.pubsub && adp) void adp.publish(ch, { type: 'all', data, opts: broadcastOpts });
+        if (opts.pubsub && adp) await adp.publish(ch, { type: 'all', data, opts: broadcastOpts });
       },
-      to(selector, data, broadcastOpts) {
+      async to(selector, data, broadcastOpts) {
         for (const c of pool()) {
           if (c.readyState === WebSocket.OPEN && matchesSelector(selector as QuerySelector, c) && !isExcluded(broadcastOpts, c))
             sendEvent(c, data);
         }
         const adp = opts.adapterRef();
-        if (opts.pubsub && adp) void adp.publish(ch, { type: 'to', selector: selector as QuerySelector, data, opts: broadcastOpts });
+        if (opts.pubsub && adp) await adp.publish(ch, { type: 'to', selector: selector as QuerySelector, data, opts: broadcastOpts });
       },
-      except(selector, data) {
+      async except(selector, data) {
         for (const c of pool()) {
           if (c.readyState === WebSocket.OPEN && !matchesSelector(selector as QuerySelector, c)) sendEvent(c, data);
         }
         const adp = opts.adapterRef();
-        if (opts.pubsub && adp) void adp.publish(ch, { type: 'except', selector: selector as QuerySelector, data });
+        if (opts.pubsub && adp) await adp.publish(ch, { type: 'except', selector: selector as QuerySelector, data });
       },
       channel(targetName) {
         return {
-          all(data, broadcastOpts) {
+          async all(data, broadcastOpts) {
             const srv = opts.serverRef();
             if (!srv) return;
             for (const c of srv.clients as Set<WebSocket>) {
@@ -286,9 +297,9 @@ export function createChannelCron<
                 sendEvent(c, data);
             }
             const adp = opts.adapterRef();
-            if (adp) void adp.publish(targetName, { type: 'all', data, opts: broadcastOpts });
+            if (adp) await adp.publish(targetName, { type: 'all', data, opts: broadcastOpts });
           },
-          to(selector, data, broadcastOpts) {
+          async to(selector, data, broadcastOpts) {
             const srv = opts.serverRef();
             if (!srv) return;
             for (const c of srv.clients as Set<WebSocket>) {
@@ -296,9 +307,9 @@ export function createChannelCron<
                 sendEvent(c, data);
             }
             const adp = opts.adapterRef();
-            if (adp) void adp.publish(targetName, { type: 'to', selector, data, opts: broadcastOpts });
+            if (adp) await adp.publish(targetName, { type: 'to', selector, data, opts: broadcastOpts });
           },
-          except(selector, data) {
+          async except(selector, data) {
             const srv = opts.serverRef();
             if (!srv) return;
             for (const c of srv.clients as Set<WebSocket>) {
@@ -306,73 +317,94 @@ export function createChannelCron<
                 sendEvent(c, data);
             }
             const adp = opts.adapterRef();
-            if (adp) void adp.publish(targetName, { type: 'except', selector, data });
+            if (adp) await adp.publish(targetName, { type: 'except', selector, data });
           },
         };
       },
     };
   }
 
-  function buildContext(server: WebSocketServer): CronContext<TName, TEmit, TStores, TMeta> {
+  function buildCtx(server: WebSocketServer): CronContext<TName, TEmit, TStores, TMeta> {
     return {
       channel: opts.channelName,
       stores: opts.stores,
       clients: buildClientsAccessor(server),
       broadcast: buildBroadcast(server),
-      stop() { internals.stop(); },
+      stop() {
+        internals.stop();
+      },
     };
-  }
-
-  function safeRun(): void {
-    const server = opts.serverRef();
-    if (running || !server) return;
-    running = true;
-    const started = new Date();
-
-    Promise.resolve()
-      .then(() => opts.run(buildContext(server)))
-      .then(() => {
-        const finished = new Date();
-        job.last = { arguments: null, error: null, timestamps: { started, finished, durationMs: finished.getTime() - started.getTime() } };
-      })
-      .catch((err: unknown) => {
-        const finished = new Date();
-        const error = err instanceof Error ? err : new Error(String(err));
-        job.last = { arguments: null, error, timestamps: { started, finished, durationMs: finished.getTime() - started.getTime() } };
-        if (opts.onError) {
-          try { void Promise.resolve(opts.onError(buildContext(server), error)); } catch { /* protect loop */ }
-        }
-        console.error(`[cron:${opts.name}]`, error);
-      })
-      .finally(() => { running = false; });
   }
 
   const internals: CronInternals = {
     channelName: opts.channelName,
     pubsub: opts.pubsub,
     stores: opts.stores,
-    start(_server, _adapter) {
+    get running() {
+      return running;
+    },
+
+    start(server) {
       if (cronInstance) return;
+      const expr = typeof opts.schedule === 'string' ? opts.schedule : opts.schedule.expression;
+      const tz = typeof opts.schedule === 'string' ? undefined : opts.schedule.tz;
+
       cronInstance = new Cron(
-        opts.schedule.expression,
-        opts.schedule.tz ? { timezone: opts.schedule.tz } : undefined,
-        safeRun,
+        expr,
+        tz ? { timezone: tz } : undefined,
+        async () => {
+          running = true;
+          const started = new Date();
+          try {
+            await opts.run(buildCtx(server));
+            const finished = new Date();
+            lastRun = {
+              arguments: null,
+              error: null,
+              timestamps: { started, finished, durationMs: finished.getTime() - started.getTime() },
+            };
+          } catch (err) {
+            const error = err instanceof Error ? err : new Error(String(err));
+            const finished = new Date();
+            lastRun = {
+              arguments: null,
+              error,
+              timestamps: { started, finished, durationMs: finished.getTime() - started.getTime() },
+            };
+            if (opts.onError) {
+              try {
+                await opts.onError(buildCtx(server), error);
+              } catch {
+                // Suppress error in onError
+              }
+            }
+          } finally {
+            running = false;
+          }
+        },
       );
     },
+
     stop() {
       cronInstance?.stop();
       cronInstance = null;
     },
   };
 
-  const job: CronJob = {
+  return {
     name: opts.name,
     [symbols.cron]: internals,
-    last: null,
-    stop() { internals.stop(); },
-    isRunning() { return cronInstance !== null; },
-    nextRun() { return cronInstance?.nextRun() ?? null; },
+    stop() {
+      internals.stop();
+    },
+    isRunning() {
+      return running;
+    },
+    nextRun() {
+      return cronInstance?.nextRun() ?? null;
+    },
+    get last() {
+      return lastRun;
+    },
   };
-
-  return job;
 }

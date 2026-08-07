@@ -33,10 +33,6 @@ async function createTestServer(api: RealtimeApi<any>) {
   };
 }
 
-// The server sends `connected` in the same TCP data callback as the 101 Upgrade
-// response (loopback delivers them together), so `message` fires synchronously
-// after `open` before any Promise microtasks. Buffer messages in `connect()` so
-// `nextMessage()` can pop from the buffer even if it's called after `open`.
 const msgBuf = new WeakMap<WebSocket, unknown[]>();
 const msgWaiters = new WeakMap<WebSocket, ((v: unknown) => void)[]>();
 
@@ -180,7 +176,7 @@ describe('channel integration', () => {
 
   it('onMessage fires and ctx.reply sends back to sender', async () => {
     const [ws] = track(await connect(server.url('echo')));
-    await nextMessage(ws); // consume 'connected'
+    await nextMessage(ws);
     send(ws, { text: 'hello' });
     const reply = await nextMessage(ws);
     expect(reply).toEqual({ type: 'message', data: { text: 'hello' } });
@@ -191,10 +187,9 @@ describe('channel integration', () => {
       await connect(server.url('broadcast')),
       await connect(server.url('broadcast')),
     );
-    await nextMessage(ws1); // 'connected'
-    await nextMessage(ws2); // 'connected'
+    await nextMessage(ws1);
+    await nextMessage(ws2);
 
-    // ws1 sends; both should receive
     const p1 = nextMessage(ws1);
     const p2 = nextMessage(ws2);
     send(ws1, { text: 'hi all' });
@@ -223,7 +218,6 @@ describe('channel integration', () => {
     expect(m2).toEqual({ type: 'message', data: { text: 'only others' } });
     expect(m3).toEqual({ type: 'message', data: { text: 'only others' } });
 
-    // ws1 should NOT receive a message (with a short timeout)
     const ws1Got = await Promise.race([
       nextMessage(ws1),
       new Promise((r) => setTimeout(() => r('timeout'), 100)),
@@ -240,7 +234,6 @@ describe('channel integration', () => {
         },
         events: {
           onConnect(ctx) {
-            // set role from URL search params
             const role = ctx.params.get('role') ?? 'guest';
             ctx.meta.set('role', role);
           },
@@ -265,7 +258,6 @@ describe('channel integration', () => {
     const mAdmin = await pAdmin;
     expect(mAdmin).toEqual({ type: 'message', data: { text: 'admin only' } });
 
-    // guest should NOT receive
     const guestGot = await Promise.race([
       nextMessage(guest),
       new Promise((r) => setTimeout(() => r('timeout'), 100)),
@@ -277,7 +269,7 @@ describe('channel integration', () => {
 
   it('ctx.disconnect() closes the connection from the server', async () => {
     const [ws] = track(await connect(server.url('disconnect-me')));
-    await nextMessage(ws); // 'connected'
+    await nextMessage(ws);
 
     const closeP = nextClose(ws);
     send(ws, { text: 'bye' });
@@ -294,9 +286,8 @@ describe('channel integration', () => {
 
   it('invalid message format sends error frame', async () => {
     const [ws] = track(await connect(server.url('echo')));
-    await nextMessage(ws); // 'connected'
+    await nextMessage(ws);
 
-    // Send wrong type to trigger invalid format error
     ws.send(JSON.stringify({ type: 'wrong', data: {} }));
     const errMsg = (await nextMessage(ws)) as { type: string; reason: string };
     expect(errMsg.type).toBe('error');
@@ -305,9 +296,8 @@ describe('channel integration', () => {
 
   it('validation failure sends error frame with issues', async () => {
     const [ws] = track(await connect(server.url('echo')));
-    await nextMessage(ws); // 'connected'
+    await nextMessage(ws);
 
-    // echo channel expects { text: string } but we send a number
     send(ws, 42);
     const errMsg = (await nextMessage(ws)) as {
       type: string;

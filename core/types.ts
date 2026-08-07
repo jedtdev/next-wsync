@@ -3,9 +3,10 @@ import type WebSocket from 'ws';
 import type { WebSocketServer } from 'ws';
 import type { PubSubAdapter } from './adapters';
 import type { symbols } from './constants';
-import { Channel } from './channel';
-import { Stats } from './server';
-import { MethodMap } from './storage';
+import type { Channel } from './channel';
+import type { Stats } from './server';
+import type { MethodMap } from './storage';
+import type { ReadonlyHeaders, ReadonlyRequestsCookies } from './utils';
 
 // ── Disconnect ─────────────────────────────────────────────────
 
@@ -22,6 +23,15 @@ declare module 'ws' {
     meta: Record<string, unknown>;
     disconnect(opts?: DisconnectOptions): void;
   }
+}
+
+// ── Cron Control ──────────────────────────────────────────────
+
+export interface CronControl {
+  start(): void;
+  stop(): void;
+  trigger(): Promise<void>;
+  readonly running: boolean;
 }
 
 // ── Selector ──────────────────────────────────────────────────
@@ -55,31 +65,31 @@ export interface CrossChannelBroadcast<
   TEmit = unknown,
   TMeta extends Record<string, unknown> = Record<string, unknown>,
 > {
-  all(data: TEmit, opts?: BroadcastOptions<TMeta>): void;
-  to(selector: QuerySelector<TMeta>, data: TEmit, opts?: BroadcastOptions<TMeta>): void;
-  except(selector: QuerySelector<TMeta>, data: TEmit): void;
+  all(data: TEmit, opts?: BroadcastOptions<TMeta>): Promise<void>;
+  to(selector: QuerySelector<TMeta>, data: TEmit, opts?: BroadcastOptions<TMeta>): Promise<void>;
+  except(selector: QuerySelector<TMeta>, data: TEmit): Promise<void>;
 }
 
 export interface ChannelBroadcast<
-  TEmit,
-  TMeta extends Record<string, unknown>,
+  TEmit = unknown,
+  TMeta extends Record<string, unknown> = Record<string, unknown>,
 > {
-  all(data: TEmit, opts?: BroadcastOptions<TMeta>): void;
-  others(data: TEmit, opts?: BroadcastOptions<TMeta>): void;
-  to(selector: QuerySelector<TMeta>, data: TEmit, opts?: BroadcastOptions<TMeta>): void;
-  except(selector: QuerySelector<TMeta>, data: TEmit): void;
+  all(data: TEmit, opts?: BroadcastOptions<TMeta>): Promise<void>;
+  others(data: TEmit, opts?: BroadcastOptions<TMeta>): Promise<void>;
+  to(selector: QuerySelector<TMeta>, data: TEmit, opts?: BroadcastOptions<TMeta>): Promise<void>;
+  except(selector: QuerySelector<TMeta>, data: TEmit): Promise<void>;
   channel<TTargetEmit = unknown, TTargetMeta extends Record<string, unknown> = Record<string, unknown>>(
     name: string,
   ): CrossChannelBroadcast<TTargetEmit, TTargetMeta>;
 }
 
 export interface CronBroadcast<
-  TEmit,
+  TEmit = unknown,
   TMeta extends Record<string, unknown> = Record<string, unknown>,
 > {
-  all(data: TEmit, opts?: BroadcastOptions<TMeta>): void;
-  to(selector: QuerySelector<TMeta>, data: TEmit, opts?: BroadcastOptions<TMeta>): void;
-  except(selector: QuerySelector<TMeta>, data: TEmit): void;
+  all(data: TEmit, opts?: BroadcastOptions<TMeta>): Promise<void>;
+  to(selector: QuerySelector<TMeta>, data: TEmit, opts?: BroadcastOptions<TMeta>): Promise<void>;
+  except(selector: QuerySelector<TMeta>, data: TEmit): Promise<void>;
   channel<TTargetEmit = unknown, TTargetMeta extends Record<string, unknown> = Record<string, unknown>>(
     name: string,
   ): CrossChannelBroadcast<TTargetEmit, TTargetMeta>;
@@ -88,7 +98,7 @@ export interface CronBroadcast<
 // ── Client selection ──────────────────────────────────────────
 
 export interface ClientsAccessor<
-  TEmit,
+  TEmit = unknown,
   TMeta extends Record<string, unknown> = Record<string, unknown>,
 > {
   readonly size: number;
@@ -121,19 +131,22 @@ export interface MetaAccessor<TMeta extends Record<string, unknown>> {
 }
 
 export interface ChannelMethodCtx<
-  TEmit,
-  TStores,
+  TEmit = unknown,
+  TStores = unknown,
   TMeta extends Record<string, unknown> = Record<string, unknown>,
 > {
   stores: TStores;
   broadcast: ChannelBroadcast<TEmit, TMeta>;
 }
 
+import type { ScopeLogger } from './logger';
+
 export interface ChannelContext<
-  TName extends string,
-  TEmit,
-  TStores,
+  TName extends string = string,
+  TEmit = unknown,
+  TStores = unknown,
   TMeta extends Record<string, unknown> = Record<string, unknown>,
+  TCrons extends Record<string, CronControl> = Record<string, CronControl>,
 > {
   client: WebSocket;
   server: WebSocketServer;
@@ -143,15 +156,19 @@ export interface ChannelContext<
   stores: TStores;
   meta: MetaAccessor<TMeta>;
   clients: ClientsAccessor<TEmit, TMeta>;
+  crons: TCrons;
+  cookies: ReadonlyRequestsCookies;
+  headers: ReadonlyHeaders;
+  log: ScopeLogger;
   reply(data: TEmit): void;
   broadcast: ChannelBroadcast<TEmit, TMeta>;
   disconnect(code?: number, reason?: string): void;
 }
 
 export interface CronContext<
-  TName extends string,
-  TEmit,
-  TStores,
+  TName extends string = string,
+  TEmit = unknown,
+  TStores = unknown,
   TMeta extends Record<string, unknown> = Record<string, unknown>,
 > {
   channel: TName;
@@ -217,4 +234,8 @@ export type Infer<T extends RealtimeApi<readonly Channel[]>> =
 export type RealtimeChannel<
   TChannel extends Channel,
   TMethodDefs extends MethodMap = Record<never, never>,
-> = TChannel & { methods: TMethodDefs };
+  TCrons extends Record<string, CronControl> = Record<string, CronControl>,
+> = TChannel & {
+  methods: TMethodDefs;
+  crons: TCrons;
+};

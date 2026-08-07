@@ -113,6 +113,23 @@ export function storage<
   };
 }
 
+export function redisStorage<
+  TName extends string,
+  TRedisClient,
+  TMethods extends MethodMap = Record<never, never>,
+>(
+  name: TName,
+  redisClient: TRedisClient,
+  methods?: (redis: TRedisClient) => TMethods,
+  middleware?: StorageMiddleware<TMethods>,
+): StorageInstance<TName, TRedisClient, TMethods> {
+  return storage(name, {
+    store: redisClient,
+    methods: methods ?? (() => ({}) as TMethods),
+    middleware,
+  });
+}
+
 export type InferStores<T> = T extends StorageInstance<
   string,
   unknown,

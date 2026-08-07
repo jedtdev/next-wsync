@@ -1,5 +1,27 @@
 import WebSocket from 'ws';
+import { RequestCookies } from 'next/dist/compiled/@edge-runtime/cookies';
 import type { BroadcastOptions, QuerySelector, ServerMessage } from './types';
+
+export class ReadonlyHeaders extends Headers {
+  override append(): void {
+    throw new Error('Headers are read-only in WebSocket context');
+  }
+  override set(): void {
+    throw new Error('Headers are read-only in WebSocket context');
+  }
+  override delete(): void {
+    throw new Error('Headers are read-only in WebSocket context');
+  }
+}
+
+export class ReadonlyRequestsCookies extends RequestCookies {
+  override set(): this {
+    throw new Error('Cookies are read-only in WebSocket context');
+  }
+  override delete(_names: string | string[]): boolean | boolean[] {
+    throw new Error('Cookies are read-only in WebSocket context');
+  }
+}
 
 export function matchesSelector(
   selector: QuerySelector,

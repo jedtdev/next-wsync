@@ -187,9 +187,7 @@ describe('storage()', () => {
       s.methods.increment();
       const cloned = s.clone();
 
-      // cloned starts at 0
       expect(cloned.methods.get()).toBe(0);
-      // original is still at 1
       expect(s.methods.get()).toBe(1);
     });
 
@@ -231,7 +229,6 @@ describe('storage()', () => {
       const refInstance = s.ref();
 
       s.methods.increment();
-      // ref sees the same mutation
       expect(refInstance.methods.get()).toBe(1);
 
       refInstance.methods.increment();

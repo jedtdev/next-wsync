@@ -44,10 +44,12 @@ npm i next-wsync next-ws && npx next-ws patch
 ```ts
 // lib/realtime/channels/room.ts
 import { z } from 'zod'
-import { channel } from 'next-wsync'
+import { cookies, headers } from 'next/headers'
+import { auth } from '@/auth' // Native NextAuth v5 / Auth.js
+import { channel, ctx } from 'next-wsync'
 
 export const roomChannel = channel('room', {
-  parameters: {
+  schema: {
     emit: z.object({
       type: z.literal('message'),
       text: z.string(),
@@ -57,22 +59,28 @@ export const roomChannel = channel('room', {
       type: z.literal('message'),
       text: z.string(),
     }),
+    meta: z.object({
+      userId: z.string(),
+      roomId: z.string(),
+    }),
   },
-  meta: z.object({
-    userId: z.string(),
-    roomId: z.string(),
-  }),
   events: {
-    onConnect(ctx) {
+    async onConnect() {
+      // Native NextAuth & Next.js APIs work out of the box!
+      const session = await auth()
+      const userAgent = (await headers()).get('user-agent')
+
       const roomId = ctx.params.get('roomId') ?? 'default'
       ctx.meta.set('roomId', roomId)
-      ctx.meta.set('userId', crypto.randomUUID())
+      ctx.meta.set('userId', session?.user?.id ?? crypto.randomUUID())
+
       ctx.reply({ type: 'message', text: 'Welcome!', from: 'system' })
     },
-    onMessage(ctx, data) {
+    async onMessage(data) {
+      // Ambient ctx access with zero prop drilling!
       ctx.broadcast.others({ type: 'message', text: data.text, from: ctx.client.id })
     },
-    onDisconnect(ctx) {
+    async onDisconnect() {
       ctx.broadcast.all({ type: 'message', text: 'A user left', from: 'system' })
     },
   },
@@ -601,6 +609,54 @@ The hook reconnects automatically with exponential backoff and jitter, capped at
 
 ---
 
+## Debugging & Logging
+
+`next-wsync` provides built-in debug logging with colored Next.js CLI terminal formatting.
+
+### Enabling Debug Logs
+
+You can enable debug logging directly in `wsync()` or via environment variables:
+
+```ts
+// Option 1: In wsync options
+export const api = wsync([roomChannel], {
+  debug: true, // true | 'verbose' | 'minimal' | false
+})
+
+// Option 2: Custom logger integration (e.g. Winston, Pino, Datadog)
+export const api = wsync([roomChannel], {
+  debug: true,
+  logger: (level, tag, message, meta) => {
+    myCustomLogger.log(level, `[${tag}] ${message}`, meta)
+  },
+})
+```
+
+Or enable via environment variable in `.env.local` or Next.js CLI:
+```bash
+NEXT_WSYNC_DEBUG=1
+# or
+DEBUG=next-wsync
+```
+
+### Scope Logger (`ctx.log`)
+
+Inside any channel event handler, method, or cron job, you can emit ambient debug logs:
+
+```ts
+events: {
+  async onConnect() {
+    ctx.log.info('Client connected', { clientId: ctx.client.id })
+    ctx.log.debug('Inspecting headers', ctx.headers)
+  },
+  async onMessage(data) {
+    ctx.log.info('Processing message', data)
+  },
+}
+```
+
+---
+
 ## Wire protocol
 
 These are the raw message shapes exchanged over the WebSocket. You do not need to handle them directly — the hook and server context abstract them away.
@@ -676,6 +732,12 @@ type RoomReceive = RouterReceive<AppRouter, 'room'>
 
 ---
 
+## Contributing
+
+Contributions are welcome! Please check out our [Contributing Guide](./CONTRIBUTING.md) for instructions on setting up the repository, running tests, and submitting pull requests.
+
+---
+
 ## License
 
-MIT
+[MIT License](./LICENSE) © 2026 Jed Terrazola

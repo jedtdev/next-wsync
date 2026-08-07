@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import WebSocket from 'ws';
 import { isExcluded, matchesSelector } from '../core/utils';
 
-// Helper: create a minimal fake WebSocket with meta attached
 function makeClient(meta: Record<string, unknown>): WebSocket {
   const ws = { meta } as unknown as WebSocket;
   return ws;

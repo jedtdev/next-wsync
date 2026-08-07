@@ -1,3 +1,11 @@
+// ── AsyncLocalStorage Scope & Context ─────────────────────────
+export { ctx, scopeStorage, useStore } from './scope';
+export type { WsyncScope } from './scope';
+
+// ── Debug Logger ──────────────────────────────────────────────
+export { configureLogger, Logger, logMessage, WsyncLogger } from './logger';
+export type { DebugOption, LoggerOptions, LogLevel, ScopeLogger } from './logger';
+
 // ── Channel ───────────────────────────────────────────────────
 export { channel } from './channel';
 export type { Channel } from './channel';
@@ -7,7 +15,7 @@ export { cron } from './cron';
 export type { CronJob, CronJobLast, JobContext, Schedule } from './cron';
 
 // ── Storage ───────────────────────────────────────────────────
-export { storage } from './storage';
+export { redisStorage, storage } from './storage';
 export type {
   InferStores,
   MethodMap,
@@ -33,6 +41,7 @@ export type {
   ClientsAccessor,
   CronBroadcast,
   CronContext,
+  CronControl,
   CrossChannelBroadcast,
   DisconnectOptions,
   Infer,
