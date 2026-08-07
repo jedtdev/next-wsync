@@ -1,5 +1,5 @@
 {
-  "name": "next-wsync",
+  "name": "@jedtdev/next-wsync",
   "version": "0.2.0",
   "description": "Typed channel-based WebSocket layer built on top of next-ws",
   "license": "MIT",

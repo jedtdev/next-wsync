@@ -15,7 +15,7 @@ A typed, channel-based WebSocket layer for Next.js. Built on top of [`next-ws`](
 ## Installation
 
 ```bash
-npm i next-wsync next-ws && npx next-ws patch
+npm i @jedtdev/next-wsync next-ws && npx next-ws patch
 ```
 
 `next-ws patch` modifies your local Next.js install to handle WebSocket upgrades. Re-run it after upgrading Next.js, or automate it:
