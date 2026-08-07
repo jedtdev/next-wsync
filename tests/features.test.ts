@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { channel } from '../core/channel';
 import { ctx } from '../core/scope';
 import { redisStorage } from '../core/storage';
-import { configureLogger, Logger } from '../core/logger';
+import { Logger } from '../core/logger';
 
 describe('v0.2.0 Features & AsyncLocalStorage Core Engine', () => {
   it('supports schema: { emit, receive, meta } definition', () => {
