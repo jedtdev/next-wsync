@@ -18,109 +18,126 @@ export interface LoggerOptions {
   logger?: (level: LogLevel, tag: string, message: string, meta?: unknown) => void;
 }
 
-let globalDebug: DebugOption =
-  typeof process !== 'undefined' && process.env
-    ? Boolean(process.env.DEBUG?.includes('next-wsync') || process.env.NEXT_WSYNC_DEBUG === '1')
-    : false;
-
-let globalCustomLogger: LoggerOptions['logger'] | undefined;
-
-export function configureLogger(options?: LoggerOptions): void {
-  if (options?.debug !== undefined) {
-    globalDebug = options.debug;
-  }
-  if (options?.logger !== undefined) {
-    globalCustomLogger = options.logger;
-  }
-}
-
-export function isDebugEnabled(): boolean {
-  return globalDebug !== false;
-}
-
-const levelColors: Record<LogLevel, string> = {
-  debug: '\x1b[34m', // Blue
-  info: '\x1b[32m',  // Green
-  warn: '\x1b[33m',  // Yellow
-  error: '\x1b[31m', // Red
-};
-const resetColor = '\x1b[0m';
-const prefixColor = '\x1b[36m'; // Cyan
-
-function formatTimestamp(): string {
-  const d = new Date();
-  return d.toTimeString().split(' ')[0] + '.' + String(d.getMilliseconds()).padStart(3, '0');
-}
-
-export function logMessage(
-  level: LogLevel,
-  tag: string,
-  message: string,
-  meta?: unknown,
-): void {
-  if (!isDebugEnabled()) return;
-
-  if (globalDebug === 'minimal' && level === 'debug') {
-    return;
-  }
-
-  if (globalCustomLogger) {
-    try {
-      globalCustomLogger(level, tag, message, meta);
-    } catch {
-      // Suppress custom logger error
-    }
-    return;
-  }
-
-  const time = formatTimestamp();
-  const color = levelColors[level] || '';
-  const levelTag = level.toUpperCase().padEnd(5);
-  const formattedTag = tag ? `[${tag}]` : '';
-
-  const metaString =
-    meta !== undefined
-      ? typeof meta === 'string' || typeof meta === 'number'
-        ? String(meta)
-        : JSON.stringify(meta)
-      : '';
-
-  const output = `${prefixColor}[next-wsync]${resetColor} \x1b[90m${time}${resetColor} ${color}${levelTag}${resetColor} \x1b[1m${formattedTag}${resetColor} ${message} ${metaString}`.trim();
-
-  switch (level) {
-    case 'error':
-      console.error(output);
-      break;
-    case 'warn':
-      console.warn(output);
-      break;
-    case 'info':
-      console.info(output);
-      break;
-    case 'debug':
-    default:
-      console.log(output);
-      break;
-  }
-}
-
 export class Logger implements ScopeLogger {
+  private static debugOption: DebugOption =
+    typeof process !== 'undefined' && process.env
+      ? Boolean(process.env.DEBUG?.includes('next-wsync') || process.env.NEXT_WSYNC_DEBUG === '1')
+      : false;
+
+  private static customLogger?: LoggerOptions['logger'];
+
+  private static readonly colors: Record<LogLevel, string> = {
+    debug: '\x1b[34m', // Blue
+    info: '\x1b[32m',  // Green
+    warn: '\x1b[33m',  // Yellow
+    error: '\x1b[31m', // Red
+  };
+  private static readonly resetColor = '\x1b[0m';
+  private static readonly prefixColor = '\x1b[36m'; // Cyan
+
   constructor(public readonly tag: string = '') {}
 
+  // ── Static Configuration & Utilities ───────────────────────
+
+  static configure(options?: LoggerOptions): void {
+    if (options?.debug !== undefined) {
+      Logger.debugOption = options.debug;
+    }
+    if (options?.logger !== undefined) {
+      Logger.customLogger = options.logger;
+    }
+  }
+
+  static isDebugEnabled(): boolean {
+    return Logger.debugOption !== false;
+  }
+
+  static create(tag: string): Logger {
+    return new Logger(tag);
+  }
+
+  private static formatTimestamp(): string {
+    const d = new Date();
+    return d.toTimeString().split(' ')[0] + '.' + String(d.getMilliseconds()).padStart(3, '0');
+  }
+
+  private static formatOutput(
+    level: LogLevel,
+    tag: string,
+    message: string,
+    meta?: unknown,
+  ): string {
+    const time = Logger.formatTimestamp();
+    const color = Logger.colors[level] || '';
+    const levelTag = level.toUpperCase().padEnd(5);
+    const formattedTag = tag ? `[${tag}]` : '';
+
+    const metaString =
+      meta !== undefined
+        ? typeof meta === 'string' || typeof meta === 'number'
+          ? String(meta)
+          : JSON.stringify(meta)
+        : '';
+
+    return `${Logger.prefixColor}[next-wsync]${Logger.resetColor} \x1b[90m${time}${Logger.resetColor} ${color}${levelTag}${Logger.resetColor} \x1b[1m${formattedTag}${Logger.resetColor} ${message} ${metaString}`.trim();
+  }
+
+  private static emit(
+    level: LogLevel,
+    tag: string,
+    message: string,
+    meta?: unknown,
+  ): void {
+    if (!Logger.isDebugEnabled()) return;
+
+    if (Logger.debugOption === 'minimal' && level === 'debug') {
+      return;
+    }
+
+    if (Logger.customLogger) {
+      try {
+        Logger.customLogger(level, tag, message, meta);
+      } catch {
+        // Suppress custom logger errors
+      }
+      return;
+    }
+
+    const output = Logger.formatOutput(level, tag, message, meta);
+
+    switch (level) {
+      case 'error':
+        console.error(output);
+        break;
+      case 'warn':
+        console.warn(output);
+        break;
+      case 'info':
+        console.info(output);
+        break;
+      case 'debug':
+      default:
+        console.log(output);
+        break;
+    }
+  }
+
+  // ── Instance Methods ────────────────────────────────────────
+
   debug(message: string, meta?: unknown): void {
-    logMessage('debug', this.tag, message, meta);
+    Logger.emit('debug', this.tag, message, meta);
   }
 
   info(message: string, meta?: unknown): void {
-    logMessage('info', this.tag, message, meta);
+    Logger.emit('info', this.tag, message, meta);
   }
 
   warn(message: string, meta?: unknown): void {
-    logMessage('warn', this.tag, message, meta);
+    Logger.emit('warn', this.tag, message, meta);
   }
 
   error(message: string, meta?: unknown): void {
-    logMessage('error', this.tag, message, meta);
+    Logger.emit('error', this.tag, message, meta);
   }
 
   child(subTag: string): Logger {
@@ -129,8 +146,10 @@ export class Logger implements ScopeLogger {
   }
 }
 
+// Aliases for backward compatibility
 export const WsyncLogger = Logger;
-
-export function createScopeLogger(tag: string): Logger {
-  return new Logger(tag);
+export const configureLogger = Logger.configure;
+export const createScopeLogger = Logger.create;
+export function logMessage(level: LogLevel, tag: string, message: string, meta?: unknown): void {
+  (Logger as unknown as { emit: typeof Logger['emit'] }).emit(level, tag, message, meta);
 }
