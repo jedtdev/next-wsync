@@ -113,10 +113,10 @@ describe('v0.2.0 Features & AsyncLocalStorage Core Engine', () => {
     expect(result).toBe('test-value:user_123');
   });
 
-  it('supports debug logging via configureLogger and custom loggers', () => {
+  it('supports debug logging via Logger.configure and custom loggers', () => {
     const logs: Array<{ level: string; tag: string; message: string }> = [];
 
-    configureLogger({
+    Logger.configure({
       debug: true,
       logger: (level, tag, message) => {
         logs.push({ level, tag, message });
@@ -137,7 +137,7 @@ describe('v0.2.0 Features & AsyncLocalStorage Core Engine', () => {
   it('supports Logger class and .child() sub-loggers', () => {
     const logs: Array<{ level: string; tag: string; message: string }> = [];
 
-    configureLogger({
+    Logger.configure({
       debug: true,
       logger: (level, tag, message) => {
         logs.push({ level, tag, message });

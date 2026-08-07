@@ -23,7 +23,7 @@ import type {
 import { isExcluded, matchesSelector, ReadonlyHeaders, ReadonlyRequestsCookies, sendEvent } from './utils';
 import { symbols } from './constants';
 import { scopeStorage, type WsyncScope } from './scope';
-import { createScopeLogger, logMessage } from './logger';
+import { Logger } from './logger';
 
 export interface ChannelInternals<TName extends string> {
   readonly pubsub: boolean;
@@ -282,7 +282,7 @@ export function channel<
               crons: cronControls as any,
               cookies: new ReadonlyRequestsCookies(new Headers()),
               headers: new ReadonlyHeaders(new Headers()),
-              log: createScopeLogger(name),
+              log: Logger.create(name),
               reply: () => {},
               disconnect: () => {},
             };
@@ -328,7 +328,7 @@ export function channel<
       },
     };
 
-    const scopeLog = createScopeLogger(name);
+    const scopeLog = Logger.create(name);
 
     const ctxObj: ChannelContext<TName, TEmit, InferStores<TStores>, TMeta, any> = {
       client: raw.client,
@@ -367,6 +367,8 @@ export function channel<
   ) as TMethodDefs;
 
   // ── Internals ─────────────────────────────────────────────
+  const scopeLog = Logger.create(name);
+
   const channelInternals: ChannelInternals<TName> = {
     pubsub,
     jobs: channelCronsJobs,
@@ -380,7 +382,7 @@ export function channel<
 
       const clients = () => getChannelClients(raw.server, name);
       const scope = buildScope(raw, clients);
-      logMessage('info', name, `Client ${raw.client.id} connected`);
+      scopeLog.info(`Client ${raw.client.id} connected`);
 
       await scopeStorage.run(scope, async () => {
         await def.events?.onConnect?.(scope as any);
@@ -390,7 +392,7 @@ export function channel<
 
     async onMessage(raw, data) {
       if (!data || typeof data !== 'object' || (data as { type?: unknown }).type !== 'message') {
-        logMessage('warn', name, `Invalid message format received from ${raw.client.id}`, data);
+        scopeLog.warn(`Invalid message format received from ${raw.client.id}`, data);
         sendSystem(raw.client, { type: 'error', reason: 'Invalid message format' });
         return;
       }
@@ -399,12 +401,12 @@ export function channel<
       const result = receiveSchema.safeParse(payload);
 
       if (!result.success) {
-        logMessage('warn', name, `Validation failed for message from ${raw.client.id}`, result.error.issues);
+        scopeLog.warn(`Validation failed for message from ${raw.client.id}`, result.error.issues);
         sendSystem(raw.client, { type: 'error', reason: 'Validation failed', issues: result.error.issues });
         return;
       }
 
-      logMessage('debug', name, `Message received from ${raw.client.id}`, result.data);
+      scopeLog.debug(`Message received from ${raw.client.id}`, result.data);
       const clients = () => getChannelClients(raw.server, name);
       const scope = buildScope(raw, clients);
 
@@ -415,7 +417,7 @@ export function channel<
     },
 
     async onDisconnect(raw) {
-      logMessage('info', name, `Client ${raw.client.id} disconnected`);
+      scopeLog.info(`Client ${raw.client.id} disconnected`);
       const clients = () => getChannelClients(raw.server, name);
       const scope = buildScope(raw, clients);
 
@@ -426,7 +428,7 @@ export function channel<
     },
 
     async onError(raw, err) {
-      logMessage('error', name, `Error on client ${raw.client.id}`, err);
+      scopeLog.error(`Error on client ${raw.client.id}`, err);
       const clients = () => getChannelClients(raw.server, name);
       const scope = buildScope(raw, clients);
 

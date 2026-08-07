@@ -145,11 +145,3 @@ export class Logger implements ScopeLogger {
     return new Logger(combinedTag);
   }
 }
-
-// Aliases for backward compatibility
-export const WsyncLogger = Logger;
-export const configureLogger = Logger.configure;
-export const createScopeLogger = Logger.create;
-export function logMessage(level: LogLevel, tag: string, message: string, meta?: unknown): void {
-  (Logger as unknown as { emit: typeof Logger['emit'] }).emit(level, tag, message, meta);
-}

@@ -8,7 +8,7 @@ import { symbols } from './constants';
 import type { QuerySelector, RealtimeApi } from './types';
 import { matchesSelector } from './utils';
 
-import { configureLogger, type DebugOption, type LogLevel, logMessage } from './logger';
+import { Logger, type DebugOption, type LogLevel } from './logger';
 
 // ── Stats ─────────────────────────────────────────────────────
 
@@ -48,7 +48,7 @@ class RealtimeServer {
   private isProcessAttached = false;
 
   constructor(channels: ReadonlyArray<Channel>, options: RealtimeOptions = {}) {
-    configureLogger({ debug: options.debug, logger: options.logger });
+    Logger.configure({ debug: options.debug, logger: options.logger });
     this.adapter = options.adapter;
     this.globalJobs = options.jobs ?? [];
 
@@ -215,11 +215,11 @@ class RealtimeServer {
     const url = new URL(request.url);
     const channelName = url.pathname.split('/').at(-1) ?? '';
     const handler = this.channelMap.get(channelName);
-
-    logMessage('debug', 'upgrade', `HTTP Upgrade request for channel "${channelName}" (client: ${client.id})`);
+    const upgradeLog = Logger.create('upgrade');
+    upgradeLog.debug(`HTTP Upgrade request for channel "${channelName}" (client: ${client.id})`);
 
     if (!handler) {
-      logMessage('warn', 'upgrade', `Rejected upgrade for unknown channel "${channelName}" (client: ${client.id})`);
+      upgradeLog.warn(`Rejected upgrade for unknown channel "${channelName}" (client: ${client.id})`);
       client.close(1008, 'Unknown channel');
       return;
     }

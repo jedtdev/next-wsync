@@ -3,7 +3,7 @@ export { ctx, scopeStorage, useStore } from './scope';
 export type { WsyncScope } from './scope';
 
 // ── Debug Logger ──────────────────────────────────────────────
-export { configureLogger, Logger, logMessage, WsyncLogger } from './logger';
+export { Logger } from './logger';
 export type { DebugOption, LoggerOptions, LogLevel, ScopeLogger } from './logger';
 
 // ── Channel ───────────────────────────────────────────────────
