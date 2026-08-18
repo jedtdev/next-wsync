@@ -288,6 +288,8 @@ export function createClient<TRouter extends Record<string, { emit: unknown; rec
     const optsRef = useRef(options);
     optsRef.current = options;
 
+    const subscribersRef = useRef(new Set<(data: TEmit) => void>());
+
     const paramsSerial = Object.entries(options.parameters ?? {})
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([k, v]) => `${k}=${v}`)
@@ -315,6 +317,7 @@ export function createClient<TRouter extends Record<string, { emit: unknown; rec
         },
         onMessage(data) {
           optsRef.current.events?.onMessage?.(data);
+          subscribersRef.current.forEach((cb) => cb(data));
         },
         onReconnect(n) {
           setStatus(ChannelStatus.Reconnecting);
@@ -337,7 +340,12 @@ export function createClient<TRouter extends Record<string, { emit: unknown; rec
       [channel, ctx],
     );
 
-    return { send, status, id } as const;
+    const subscribe = useCallback((cb: (data: TEmit) => void) => {
+      subscribersRef.current.add(cb);
+      return () => subscribersRef.current.delete(cb);
+    }, []);
+
+    return { send, status, id, subscribe } as const;
   }
 
   return { NextWsyncProvider, useWsync };

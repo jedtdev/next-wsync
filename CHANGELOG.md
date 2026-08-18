@@ -4,6 +4,10 @@ All notable changes to `next-wsync` will be documented in this file.
 
 ## [0.3.0] - 2026-08-18
 
+### ✨ New
+
+- **`useWsync().subscribe(cb)`**: register an additional message listener imperatively (e.g. from a `useEffect`) without going through the hook's `events.onMessage` option; returns an unsubscribe function.
+
 ### ⚠️ Breaking Renames
 
 No external consumers yet, so these ship without a deprecation shim.

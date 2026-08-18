@@ -619,6 +619,13 @@ send({ type: 'message', text: 'Hello' })  // typed from channel's receive schema
 | `send` | `(data: TReceive) => void` | Send a typed message to the server |
 | `status` | `ChannelStatus` | Current connection state |
 | `id` | `string \| null` | Server-assigned socket ID (available after `onConnect`) |
+| `subscribe` | `(cb: (data: TEmit) => void) => () => void` | Register an additional message listener imperatively; returns an unsubscribe function |
+
+```tsx
+const { subscribe } = useWsync('room')
+
+useEffect(() => subscribe((data) => console.log(data)), [subscribe])
+```
 
 ### `ChannelStatus`
 
