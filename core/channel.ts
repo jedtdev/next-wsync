@@ -291,8 +291,14 @@ export function channel<
             });
           }
         },
-        get running() {
-          return job[symbols.cron].running;
+        isRunning() {
+          return job.isRunning();
+        },
+        getLastRun() {
+          return job.getLastRun();
+        },
+        getNextRun() {
+          return job.getNextRun();
         },
       };
     }

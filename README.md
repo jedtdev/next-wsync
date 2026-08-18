@@ -200,7 +200,7 @@ myChannel.methods.greet('world')
 // Control a declared cron job from outside event handlers
 myChannel.crons.heartbeat.start()
 myChannel.crons.heartbeat.stop()
-myChannel.crons.heartbeat.running
+myChannel.crons.heartbeat.isRunning()
 ```
 
 **`channel.clone(newName)`** — Copy a channel definition under a new name.
@@ -226,7 +226,7 @@ Every event handler receives a `ctx` object with the following shape:
 | `ctx.broadcast` | `ChannelBroadcast` | Broadcast to matching clients (see below) |
 | `ctx.disconnect(code?, reason?)` | `() => void` | Disconnect this socket |
 | `ctx.clients` | `ClientsAccessor` | Flat client selection API (see below) |
-| `ctx.crons` | `{ [name]: CronControl }` | Control this channel's declared cron jobs (`.start()`, `.stop()`, `.trigger()`, `.running`) |
+| `ctx.crons` | `{ [name]: CronControl }` | Control this channel's declared cron jobs (`.start()`, `.stop()`, `.trigger()`, `.isRunning()`, `.getLastRun()`, `.getNextRun()`) |
 | `ctx.cookies` | `ReadonlyRequestsCookies` | Cookies from the upgrade request |
 | `ctx.headers` | `ReadonlyHeaders` | Headers from the upgrade request |
 | `ctx.log` | `ScopeLogger` | Ambient scope logger (see [Debugging & Logging](#debugging--logging)) |
@@ -424,7 +424,9 @@ const roomChannel = channel('room', {
 roomChannel.crons.heartbeat.start()
 roomChannel.crons.heartbeat.stop()
 await roomChannel.crons.heartbeat.trigger()
-roomChannel.crons.heartbeat.running   // boolean
+roomChannel.crons.heartbeat.isRunning()   // boolean
+roomChannel.crons.heartbeat.getLastRun()  // CronJobLast | null
+roomChannel.crons.heartbeat.getNextRun()  // Date | null
 ```
 
 **Ambient `ctx` inside `run`/`onError`:**
@@ -738,7 +740,7 @@ type RoomReceive = RouterReceive<AppRouter, 'room'>
 | `ChannelBroadcast<TEmit, TMeta>` | Same-channel broadcast methods |
 | `CronBroadcast<TEmit, TMeta>` | Broadcast methods available in cron contexts |
 | `CronContext<TName, TEmit, TStores, TMeta>` | Ambient `ctx` shape inside a channel cron's `run`/`onError` |
-| `CronControl` | `{ start(), stop(), trigger(), running }` — `channel.crons.<name>` / `ctx.crons.<name>` |
+| `CronControl` | `{ start(), stop(), trigger(), isRunning(), getLastRun(), getNextRun() }` — `channel.crons.<name>` / `ctx.crons.<name>` |
 | `CrossChannelBroadcast` | Return type of `ctx.broadcast.channel()` |
 | `MetaAccessor<TMeta>` | `ctx.meta` object shape |
 | `ChannelMethodCtx<TEmit, TStores, TMeta>` | Context passed to the `methods` factory |

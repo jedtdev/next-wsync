@@ -75,6 +75,11 @@ describe('v0.2.0 Features & AsyncLocalStorage Core Engine', () => {
     expect(typeof roomChannel.crons.cleanup.start).toBe('function');
     expect(typeof roomChannel.crons.cleanup.stop).toBe('function');
     expect(typeof roomChannel.crons.cleanup.trigger).toBe('function');
+    expect(typeof roomChannel.crons.cleanup.isRunning).toBe('function');
+    expect(typeof roomChannel.crons.cleanup.getLastRun).toBe('function');
+    expect(typeof roomChannel.crons.cleanup.getNextRun).toBe('function');
+    expect(roomChannel.crons.cleanup.isRunning()).toBe(false);
+    expect(roomChannel.crons.cleanup.getLastRun()).toBeNull();
   });
 
   it('supports programmatic Async EventEmitter channel.on()', async () => {
