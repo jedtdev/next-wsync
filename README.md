@@ -10,7 +10,7 @@ A typed, channel-based WebSocket layer for Next.js. Built on top of [`next-ws`](
 - Cross-channel broadcasting with fine-grained targeting
 - Redis/Upstash/Valkey pub/sub adapter for horizontal scaling
 - `defineAdapter()` factory for custom adapters
-- Typed React hook (`useRealtime`) and provider with auto-reconnect
+- Typed React hook (`useWsync`) and provider with auto-reconnect
 
 ## Installation
 
@@ -33,7 +33,7 @@ npm i @jedtdev/next-wsync next-ws && npx next-ws patch
 | Import path | Contents |
 |---|---|
 | `next-wsync` | Server-side: `channel`, `wsync`, `storage`, `cron`, adapters, types |
-| `next-wsync/client` | Client-side: `create`, `useRealtime`, `ChannelStatus` |
+| `next-wsync/client` | Client-side: `createClient`, `useWsync`, `ChannelStatus` |
 
 ---
 
@@ -112,10 +112,10 @@ export { api as UPGRADE }
 ```tsx
 // lib/realtime/client.tsx
 'use client'
-import { create } from 'next-wsync/client'
+import { createClient } from 'next-wsync/client'
 import type { AppRouter } from './index'
 
-export const { RealtimeProvider, useRealtime } = create<AppRouter>('/api/ws')
+export const { NextWsyncProvider, useWsync } = createClient<AppRouter>('/api/ws')
 ```
 
 ### 5. Consume the hook
@@ -123,10 +123,10 @@ export const { RealtimeProvider, useRealtime } = create<AppRouter>('/api/ws')
 ```tsx
 // app/room/page.tsx
 'use client'
-import { RealtimeProvider, useRealtime } from '@/lib/realtime/client'
+import { NextWsyncProvider, useWsync } from '@/lib/realtime/client'
 
 function RoomChat() {
-  const { send, status, id } = useRealtime('room', {
+  const { send, status, id } = useWsync('room', {
     parameters: { roomId: 'lobby' },
     events: {
       onMessage(data) {
@@ -147,9 +147,9 @@ function RoomChat() {
 
 export default function Page() {
   return (
-    <RealtimeProvider>
+    <NextWsyncProvider>
       <RoomChat />
-    </RealtimeProvider>
+    </NextWsyncProvider>
   )
 }
 ```
@@ -166,6 +166,8 @@ Defines a typed channel. All event handlers receive a fully typed `ctx` object d
 import { channel } from 'next-wsync'
 
 const myChannel = channel('chat', {
+  // `parameters` + top-level `meta` (below) or `schema: { emit, receive, meta }`
+  // (as in the Quick start example) are interchangeable — use whichever reads better.
   parameters: {
     emit:    z.object({ ... }),   // data shape sent to clients
     receive: z.object({ ... }),   // data shape accepted from clients
@@ -176,6 +178,12 @@ const myChannel = channel('chat', {
   methods: (ctx) => ({            // reusable server-side helpers
     greet: (name: string) => ctx.broadcast.all({ type: 'greeting', text: `Hi ${name}` }),
   }),
+  crons: {                        // declarative channel-scoped cron jobs
+    heartbeat: {
+      schedule: '*/5 * * * * *',
+      run: () => myChannel.methods.greet('cron'),
+    },
+  },
   events: {
     onConnect(ctx) {},
     onMessage(ctx, data) {},
@@ -187,10 +195,10 @@ const myChannel = channel('chat', {
 // Access bound methods from outside event handlers
 myChannel.methods.greet('world')
 
-// Attach channel-scoped cron jobs
-myChannel.cron('heartbeat', { expression: '*/5 * * * * *' }, (ctx) => {
-  ctx.broadcast.all({ type: 'tick', ts: Date.now() })
-})
+// Control a declared cron job from outside event handlers
+myChannel.crons.heartbeat.start()
+myChannel.crons.heartbeat.stop()
+myChannel.crons.heartbeat.running
 ```
 
 **`channel.clone(newName)`** — Copy a channel definition under a new name.
@@ -216,6 +224,10 @@ Every event handler receives a `ctx` object with the following shape:
 | `ctx.broadcast` | `ChannelBroadcast` | Broadcast to matching clients (see below) |
 | `ctx.disconnect(code?, reason?)` | `() => void` | Disconnect this socket |
 | `ctx.clients` | `ClientsAccessor` | Flat client selection API (see below) |
+| `ctx.crons` | `{ [name]: CronControl }` | Control this channel's declared cron jobs (`.start()`, `.stop()`, `.trigger()`, `.running`) |
+| `ctx.cookies` | `ReadonlyRequestsCookies` | Cookies from the upgrade request |
+| `ctx.headers` | `ReadonlyHeaders` | Headers from the upgrade request |
+| `ctx.log` | `ScopeLogger` | Ambient scope logger (see [Debugging & Logging](#debugging--logging)) |
 
 #### `ctx.meta`
 
@@ -356,10 +368,10 @@ const counterStore = storage('counter', {
     onCall(name, args) {
       console.log(`Calling ${name}`, args)
     },
-    onResult(name, result) {
+    onResult(name, args, result) {
       console.log(`${name} returned`, result)
     },
-    onError(name, error) {
+    onError(name, args, error) {
       console.error(`${name} threw`, error)
     },
   },
@@ -384,28 +396,36 @@ const myChannel = channel('demo', {
 
 ## Cron jobs
 
-### Channel crons — `channel.cron()`
+### Channel crons — `crons` in the channel definition
 
-The preferred way to schedule work scoped to a specific channel. Call `.cron()` on the channel object after defining it.
+The preferred way to schedule work scoped to a specific channel. Declare jobs under `crons` in `channel()` — each key becomes a named job, and the ambient `ctx` (imported from `next-wsync`) is available inside `run`/`onError` just like in event handlers.
 
 ```ts
-import { channel } from 'next-wsync'
+import { channel, ctx } from 'next-wsync'
 
-const roomChannel = channel('room', { ... })
+const roomChannel = channel('room', {
+  // ...
+  crons: {
+    heartbeat: {
+      schedule: '*/5 * * * * *',   // string, or { expression, tz }
+      run() {
+        ctx.broadcast.all({ type: 'tick', ts: Date.now() })
+      },
+      onError(err) {
+        console.error('heartbeat failed', err)
+      },
+    },
+  },
+})
 
-roomChannel.cron(
-  'heartbeat',
-  { expression: '*/5 * * * * *', tz: 'Asia/Manila' },
-  (ctx) => {
-    ctx.broadcast.all({ type: 'tick', ts: Date.now() })
-  },
-  (ctx, err) => {
-    console.error('heartbeat failed', err)
-  },
-)
+// Control a declared job from outside event handlers
+roomChannel.crons.heartbeat.start()
+roomChannel.crons.heartbeat.stop()
+await roomChannel.crons.heartbeat.trigger()
+roomChannel.crons.heartbeat.running   // boolean
 ```
 
-**Channel cron context (`ctx` inside `run`):**
+**Ambient `ctx` inside `run`/`onError`:**
 
 | Property | Description |
 |---|---|
@@ -454,9 +474,9 @@ export const api = wsync([roomChannel], { jobs: [globalCleanup] })
 
 ```ts
 const job = globalCleanup
-job.last          // { error: Error | null, timestamps: { start, end } | null }
+job.getLastRun()  // { arguments: null, error: Error | null, timestamps: { started, finished, durationMs } } | null
 job.isRunning()   // boolean
-job.nextRun()     // Date | null
+job.getNextRun()  // Date | null
 ```
 
 ---
@@ -540,47 +560,48 @@ wsync(channels, { adapter: myAdapter })
 
 ## Client API
 
-### `create<TRouter>(url)`
+### `createClient<TRouter>(url)`
 
-Creates a typed `RealtimeProvider` and `useRealtime` hook bound to your server's router type.
+Creates a typed `NextWsyncProvider` and `useWsync` hook bound to your server's router type.
 
 ```tsx
 // lib/realtime/client.tsx
 'use client'
-import { create } from 'next-wsync/client'
+import { createClient } from 'next-wsync/client'
 import type { AppRouter } from './index'   // typeof api
 
-export const { RealtimeProvider, useRealtime } = create<AppRouter>('/api/ws')
+export const { NextWsyncProvider, useWsync } = createClient<AppRouter>('/api/ws')
 ```
 
-### `<RealtimeProvider>`
+### `<NextWsyncProvider>`
 
 Wrap your component tree (or subtree) with this provider. It pools WebSocket connections — multiple components subscribed to the same channel with the same parameters share a single underlying socket.
 
 ```tsx
 // app/layout.tsx
-import { RealtimeProvider } from '@/lib/realtime/client'
+import { NextWsyncProvider } from '@/lib/realtime/client'
 
 export default function Layout({ children }) {
   return (
     <html>
       <body>
-        <RealtimeProvider>{children}</RealtimeProvider>
+        <NextWsyncProvider>{children}</NextWsyncProvider>
       </body>
     </html>
   )
 }
 ```
 
-### `useRealtime(channel, options?)`
+### `useWsync(channel, options?)`
 
 ```tsx
-const { send, status, id } = useRealtime('room', {
+const { send, status, id } = useWsync('room', {
   parameters: { roomId: 'abc' },    // appended as URL query params; also used as pool key
   maxRetries: 10,                   // max reconnect attempts — default: Infinity
+  protocols: 'my-subprotocol',      // optional WebSocket subprotocol(s)
   events: {
-    onOpen(event) {},
-    onClose(event) {},
+    onOpen() {},
+    onClose() {},
     onError(event) {},
     onConnect(id) {},               // fired with server-assigned socket ID
     onReconnect(attempt) {},        // fired on each reconnect attempt
@@ -655,6 +676,8 @@ events: {
 }
 ```
 
+Call `ctx.log.child('subTag')` to derive a scoped logger with an appended tag.
+
 ---
 
 ## Wire protocol
@@ -696,7 +719,8 @@ type RoomReceive = RouterReceive<AppRouter, 'room'>
 
 | Type | Description |
 |---|---|
-| `ChannelContext<TDef>` | Full context object passed to event handlers |
+| `Channel<TName, TEmit, TReceive>` | Return type of `channel()` before the methods/crons namespaces are attached |
+| `ChannelContext<TName, TEmit, TStores, TMeta, TCrons>` | Full context object passed to event handlers |
 | `ClientsAccessor<TEmit, TMeta>` | The `ctx.clients` object |
 | `DisconnectOptions` | `{ code?: number, reason?: string }` |
 | `BroadcastOptions` | `{ except?: QuerySelector<TMeta> }` |
@@ -704,14 +728,17 @@ type RoomReceive = RouterReceive<AppRouter, 'room'>
 | `QueryOp` | Union of supported operator keys (`$eq`, `$ne`, `$in`, etc.) |
 | `ChannelBroadcast<TEmit, TMeta>` | Same-channel broadcast methods |
 | `CronBroadcast<TEmit, TMeta>` | Broadcast methods available in cron contexts |
-| `CronContext<TName, TEmit, TStores, TMeta>` | Context passed to `channel.cron()` callbacks |
+| `CronContext<TName, TEmit, TStores, TMeta>` | Ambient `ctx` shape inside a channel cron's `run`/`onError` |
+| `CronControl` | `{ start(), stop(), trigger(), running }` — `channel.crons.<name>` / `ctx.crons.<name>` |
 | `CrossChannelBroadcast` | Return type of `ctx.broadcast.channel()` |
 | `MetaAccessor<TMeta>` | `ctx.meta` object shape |
 | `ChannelMethodCtx<TEmit, TStores, TMeta>` | Context passed to the `methods` factory |
-| `RealtimeChannel<TChannel, TMethodDefs>` | Channel type with `.methods` namespace |
+| `WsyncChannel<TChannel, TMethodDefs, TCrons>` | Channel type with `.methods` and `.crons` namespaces |
+| `RawContext<TName>` | Internal per-connection context passed to `ChannelInternals` handlers |
+| `WsyncScope` | Shape of the AsyncLocalStorage-backed scope behind ambient `ctx` |
 | `PubSubAdapter` | Interface for custom pub/sub adapters |
 | `AdapterDef` | Argument shape for `defineAdapter()` |
-| `RealtimeOptions` | Options for `wsync()` |
+| `WsyncOptions` | Options for `wsync()` |
 | `Stats` | Shape of `api.stats` |
 | `Infer<TApi>` | Extract router type from an `api` instance |
 | `InferRouter` | Low-level router inference helper |
@@ -720,15 +747,19 @@ type RoomReceive = RouterReceive<AppRouter, 'room'>
 | `ServerMessage<TEmit>` | Raw server-to-client wire message |
 | `ClientMessage<TReceive>` | Raw client-to-server wire message |
 | `PubSubMessage` | Internal pub/sub envelope |
-| `CronJob` | Cron job instance type |
-| `CronJobLast` | Shape of `job.last` |
+| `CronJob` | Standalone cron job instance type (`cron()` return value) |
+| `CronJobLast` | Shape returned by `job.getLastRun()` |
 | `JobContext` | Context passed to standalone `cron()` run callbacks |
-| `Schedule` | `{ expression: string, tz?: string }` |
+| `Schedule` | `string \| { expression: string, tz?: string }` |
 | `StorageInstance` | Return type of `storage()` |
 | `InferStores<TStores>` | Infer typed store methods from a store array |
 | `MethodMap` | Shape of the object returned by the `methods` factory |
-| `StorageMiddleware` | `{ onCall, onResult, onError }` |
+| `StorageMiddleware` | `{ onCall(method, args), onResult(method, args, result), onError(method, args, error) }` |
 | `ChannelStatus` | `'connecting' \| 'open' \| 'closed' \| 'error' \| 'reconnecting'` |
+| `DebugOption` | `wsync()`'s `debug` option type (`true \| 'verbose' \| 'minimal' \| false`) |
+| `LoggerOptions` | Options accepted by `Logger`/`wsync({ logger })` |
+| `LogLevel` | Union of supported log levels |
+| `ScopeLogger` | Shape of `ctx.log`, incl. `.child(subTag)` |
 
 ---
 

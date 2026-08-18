@@ -2,6 +2,25 @@
 
 All notable changes to `next-wsync` will be documented in this file.
 
+## [0.2.1-beta.2] - 2026-08-18
+
+### ⚠️ Breaking Renames
+
+No external consumers yet, so these ship without a deprecation shim.
+
+- **Client API**: `create()` → `createClient()`, `RealtimeProvider` → `NextWsyncProvider`, `useRealtime` → `useWsync`. Exported types `RealtimeOptions`/`RealtimeChannel`/`RealtimeApi` → `WsyncOptions`/`WsyncChannel`/`WsyncApi`, aligning names with the `next-wsync` package name.
+- **Cron API**: `job.last` → `job.getLastRun()`, `job.nextRun()` → `job.getNextRun()`, matching `isRunning()` as consistent method-style accessors on `CronJob`.
+
+### 📝 Docs
+
+- Corrected the README's channel-cron section — `channel.cron()` never existed; crons are declared via the `crons` def option and controlled through `channel.crons.<name>`.
+- Fixed several other README/source drifts: `job.last` shape, `useRealtime` event handler signatures, storage middleware callback arity, the `ctx` property table, and the exported-types table.
+
+### 🛠 Tooling
+
+- Playground app now resolves `@jedtdev/next-wsync` via an npm workspace `file:` link instead of a stale packed tarball, so it always tracks local source.
+- Bumped `next-ws` to `2.2.11` and aligned the dev-only `next` version pin with the playground app to avoid duplicate-package type conflicts.
+
 ## [0.2.0] - 2026-08-07
 
 ### 🚀 Major Features & Architectural Refactor

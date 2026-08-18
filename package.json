@@ -1,10 +1,12 @@
 {
   "name": "@jedtdev/next-wsync",
-  "version": "0.2.1-beta.1",
+  "version": "0.2.1-beta.2",
   "description": "Typed channel-based WebSocket layer built on top of next-ws",
   "license": "MIT",
   "type": "module",
-  "workspaces": [],
+  "workspaces": [
+    "playground"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -51,7 +53,7 @@
     "@types/react": "^19",
     "@types/ws": "^8",
     "@vitest/coverage-v8": "^3",
-    "next": "^15",
+    "next": "16.2.6",
     "next-ws": "^2",
     "tsup": "^8",
     "typescript": "^5",

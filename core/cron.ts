@@ -41,8 +41,8 @@ export interface CronJob<TName extends string = string, TEmit = unknown> {
   readonly [symbols.cron]: CronInternals;
   stop(): void;
   isRunning(): boolean;
-  nextRun(): Date | null;
-  last: CronJobLast | null;
+  getNextRun(): Date | null;
+  getLastRun(): CronJobLast | null;
 }
 
 // JobContext — used by standalone cron(), not channel crons
@@ -181,10 +181,10 @@ export function cron<
     isRunning() {
       return cronInstance?.isRunning() ?? false;
     },
-    nextRun() {
+    getNextRun() {
       return cronInstance?.nextRun() ?? null;
     },
-    get last() {
+    getLastRun() {
       return lastRun;
     },
   };
@@ -400,10 +400,10 @@ export function createChannelCron<
     isRunning() {
       return running;
     },
-    nextRun() {
+    getNextRun() {
       return cronInstance?.nextRun() ?? null;
     },
-    get last() {
+    getLastRun() {
       return lastRun;
     },
   };

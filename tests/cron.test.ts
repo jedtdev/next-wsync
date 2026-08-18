@@ -55,12 +55,12 @@ describe('cron()', () => {
     expect(job.isRunning()).toBe(false);
   });
 
-  it('last is null before any run', () => {
+  it('getLastRun() is null before any run', () => {
     const job = cron('no-run-yet', {
       schedule: { expression: '*/5 * * * *' },
       run: () => {},
     });
-    expect(job.last).toBeNull();
+    expect(job.getLastRun()).toBeNull();
   });
 
   it('job runs on schedule and last is populated', async () => {
@@ -86,7 +86,7 @@ describe('cron()', () => {
     expect(runFn).toHaveBeenCalled();
   });
 
-  it('job.last is populated with timestamps after a run', async () => {
+  it('job.getLastRun() is populated with timestamps after a run', async () => {
     const job = cron('last-check', {
       schedule: { expression: '* * * * * *' },
       run: () => {},
@@ -97,7 +97,7 @@ describe('cron()', () => {
     await new Promise<void>((resolve) => {
       const start = Date.now();
       const interval = setInterval(() => {
-        if (job.last !== null || Date.now() - start > 1500) {
+        if (job.getLastRun() !== null || Date.now() - start > 1500) {
           clearInterval(interval);
           resolve();
         }
@@ -105,11 +105,11 @@ describe('cron()', () => {
     });
 
     job.stop();
-    expect(job.last).not.toBeNull();
-    expect(job.last?.error).toBeNull();
-    expect(job.last?.timestamps.started).toBeInstanceOf(Date);
-    expect(job.last?.timestamps.finished).toBeInstanceOf(Date);
-    expect(typeof job.last?.timestamps.durationMs).toBe('number');
+    expect(job.getLastRun()).not.toBeNull();
+    expect(job.getLastRun()?.error).toBeNull();
+    expect(job.getLastRun()?.timestamps.started).toBeInstanceOf(Date);
+    expect(job.getLastRun()?.timestamps.finished).toBeInstanceOf(Date);
+    expect(typeof job.getLastRun()?.timestamps.durationMs).toBe('number');
   });
 
   it('onError is called when run throws', async () => {
@@ -141,7 +141,7 @@ describe('cron()', () => {
     expect(err.message).toBe('intentional error');
   });
 
-  it('job.last.error is set when run throws', async () => {
+  it('job.getLastRun().error is set when run throws', async () => {
     const job = cron('error-last', {
       schedule: { expression: '* * * * * *' },
       run: () => {
@@ -154,7 +154,7 @@ describe('cron()', () => {
     await new Promise<void>((resolve) => {
       const start = Date.now();
       const interval = setInterval(() => {
-        if (job.last !== null || Date.now() - start > 1500) {
+        if (job.getLastRun() !== null || Date.now() - start > 1500) {
           clearInterval(interval);
           resolve();
         }
@@ -162,8 +162,8 @@ describe('cron()', () => {
     });
 
     job.stop();
-    expect(job.last?.error).toBeInstanceOf(Error);
-    expect(job.last?.error?.message).toBe('boom');
+    expect(job.getLastRun()?.error).toBeInstanceOf(Error);
+    expect(job.getLastRun()?.error?.message).toBe('boom');
   });
 
   it('calling internals.start() twice does not create a second cron instance', () => {

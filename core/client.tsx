@@ -48,7 +48,7 @@ type ConnectionOptions = {
   protocols?: string | string[];
 };
 
-type RealtimeCtxValue = {
+type WsyncCtxValue = {
   connect<TEmit>(
     channel: string,
     params: Record<string, string>,
@@ -67,7 +67,7 @@ type RealtimeCtxValue = {
   ): void;
 };
 
-interface UseRealtimeOptions<TEmit> {
+interface UseWsyncOptions<TEmit> {
   parameters?: Record<string, string>;
   maxRetries?: number;
   protocols?: string | string[];
@@ -108,12 +108,12 @@ const utils = {
   },
 };
 
-const RealtimeCtx = createContext<RealtimeCtxValue | null>(null);
+const WsyncCtx = createContext<WsyncCtxValue | null>(null);
 
-// ── create() ─────────────────────────────────────────────────
+// ── createClient() ──────────────────────────────────────────
 
-export function create<TRouter extends Record<string, { emit: unknown; receive: unknown }>>(url: string) {
-  function RealtimeProvider({ children }: { children: ReactNode }) {
+export function createClient<TRouter extends Record<string, { emit: unknown; receive: unknown }>>(url: string) {
+  function NextWsyncProvider({ children }: { children: ReactNode }) {
     const pool = useRef(new Map<string, PoolEntry>());
     const reconnectAttempts = useRef(new Map<string, number>());
     const reconnectTimers = useRef(
@@ -264,18 +264,18 @@ export function create<TRouter extends Record<string, { emit: unknown; receive: 
     );
 
     return (
-      <RealtimeCtx.Provider value={{ connect, disconnect, send }}>
+      <WsyncCtx.Provider value={{ connect, disconnect, send }}>
         {children}
-      </RealtimeCtx.Provider>
+      </WsyncCtx.Provider>
     );
   }
 
-  function useRealtime<TChannel extends keyof TRouter & string>(
+  function useWsync<TChannel extends keyof TRouter & string>(
     channel: TChannel,
-    options: UseRealtimeOptions<RouterEmit<TRouter, TChannel>> = {},
+    options: UseWsyncOptions<RouterEmit<TRouter, TChannel>> = {},
   ) {
-    const ctx = useContext(RealtimeCtx);
-    if (!ctx) throw new Error('useRealtime must be inside <RealtimeProvider>');
+    const ctx = useContext(WsyncCtx);
+    if (!ctx) throw new Error('useWsync must be inside <NextWsyncProvider>');
 
     type TEmit = RouterEmit<TRouter, TChannel>;
     type TReceive = RouterReceive<TRouter, TChannel>;
@@ -340,5 +340,5 @@ export function create<TRouter extends Record<string, { emit: unknown; receive: 
     return { send, status, id } as const;
   }
 
-  return { RealtimeProvider, useRealtime };
+  return { NextWsyncProvider, useWsync };
 }

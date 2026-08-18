@@ -17,7 +17,7 @@ import type {
   PubSubMessage,
   QuerySelector,
   RawContext,
-  RealtimeChannel,
+  WsyncChannel,
   ServerMessage,
 } from './types';
 import { isExcluded, matchesSelector, ReadonlyHeaders, ReadonlyRequestsCookies, sendEvent } from './utils';
@@ -94,7 +94,7 @@ export function channel<
       onError?(ctx: ChannelContext<TName, TEmit, InferStores<TStores>, TMeta>, err: Error): void | Promise<void>;
     };
   },
-): RealtimeChannel<Channel<TName, TEmit, TReceive>, TMethodDefs, { [K in keyof TCrons & string]: CronControl }> & {
+): WsyncChannel<Channel<TName, TEmit, TReceive>, TMethodDefs, { [K in keyof TCrons & string]: CronControl }> & {
   on(event: 'connect', listener: (ctx: ChannelContext<TName, TEmit, InferStores<TStores>, TMeta>) => void | Promise<void>): () => void;
   on(event: 'message', listener: (payload: TReceive) => void | Promise<void>): () => void;
   on(event: 'disconnect', listener: (ctx: ChannelContext<TName, TEmit, InferStores<TStores>, TMeta>) => void | Promise<void>): () => void;

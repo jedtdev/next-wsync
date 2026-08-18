@@ -15,7 +15,7 @@ export interface DisconnectOptions {
   reason?: string;
 }
 
-// Augments ws.WebSocket with fields set by RealtimeServer.handle().
+// Augments ws.WebSocket with fields set by WsyncServer.handle().
 declare module 'ws' {
   interface WebSocket {
     id: string;
@@ -218,7 +218,7 @@ export type RouterReceive<
   TChannel extends keyof TRouter,
 > = TRouter[TChannel] extends { receive: infer R } ? R : never;
 
-export type RealtimeApi<T extends readonly Channel[]> = ((
+export type WsyncApi<T extends readonly Channel[]> = ((
   client: WebSocket,
   server: WebSocketServer,
   request: NextRequest,
@@ -228,10 +228,10 @@ export type RealtimeApi<T extends readonly Channel[]> = ((
   channels: ReadonlySet<string>;
 };
 
-export type Infer<T extends RealtimeApi<readonly Channel[]>> =
+export type Infer<T extends WsyncApi<readonly Channel[]>> =
   T[typeof symbols.router];
 
-export type RealtimeChannel<
+export type WsyncChannel<
   TChannel extends Channel,
   TMethodDefs extends MethodMap = Record<never, never>,
   TCrons extends Record<string, CronControl> = Record<string, CronControl>,

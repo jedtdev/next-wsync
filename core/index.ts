@@ -25,7 +25,7 @@ export type {
 
 // ── Server ────────────────────────────────────────────────────
 export { wsync } from './server';
-export type { RealtimeOptions, Stats } from './server';
+export type { WsyncOptions, Stats } from './server';
 
 // ── Adapters ──────────────────────────────────────────────────
 export { defineAdapter, redis, upstash, valkey } from './adapters';
@@ -51,7 +51,7 @@ export type {
   QueryOp,
   QuerySelector,
   RawContext,
-  RealtimeChannel,
+  WsyncChannel,
   RouterEmit,
   RouterReceive,
   ServerMessage,

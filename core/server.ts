@@ -5,7 +5,7 @@ import type { PubSubAdapter } from './adapters';
 import type { Channel } from './channel';
 import type { CronJob } from './cron';
 import { symbols } from './constants';
-import type { QuerySelector, RealtimeApi } from './types';
+import type { QuerySelector, WsyncApi } from './types';
 import { matchesSelector } from './utils';
 
 import { Logger, type DebugOption, type LogLevel } from './logger';
@@ -27,16 +27,16 @@ export interface Stats {
 
 // ── Config ────────────────────────────────────────────────────
 
-export interface RealtimeOptions {
+export interface WsyncOptions {
   jobs?: readonly CronJob[];
   adapter?: PubSubAdapter;
   debug?: DebugOption;
   logger?: (level: LogLevel, tag: string, message: string, meta?: unknown) => void;
 }
 
-// ── RealtimeServer ────────────────────────────────────────────
+// ── WsyncServer ────────────────────────────────────────────
 
-class RealtimeServer {
+class WsyncServer {
   private clients = new Map<string, WebSocket>();
   private channels = new Map<string, Set<WebSocket>>();
   private drainTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -47,7 +47,7 @@ class RealtimeServer {
   private isJobStarted = false;
   private isProcessAttached = false;
 
-  constructor(channels: ReadonlyArray<Channel>, options: RealtimeOptions = {}) {
+  constructor(channels: ReadonlyArray<Channel>, options: WsyncOptions = {}) {
     Logger.configure({ debug: options.debug, logger: options.logger });
     this.adapter = options.adapter;
     this.globalJobs = options.jobs ?? [];
@@ -260,9 +260,9 @@ class RealtimeServer {
 
 export function wsync<const TChannels extends ReadonlyArray<Channel>>(
   channels: TChannels,
-  options?: RealtimeOptions,
-): RealtimeApi<TChannels> {
-  const ws = new RealtimeServer(channels, options);
+  options?: WsyncOptions,
+): WsyncApi<TChannels> {
+  const ws = new WsyncServer(channels, options);
   const UPGRADE = (
     client: WebSocket,
     server: WebSocketServer,
@@ -272,5 +272,5 @@ export function wsync<const TChannels extends ReadonlyArray<Channel>>(
   };
   UPGRADE.stats = ws.stats;
   UPGRADE.channels = new Set(channels.map((ch) => ch.name)) as ReadonlySet<string>;
-  return UPGRADE as RealtimeApi<TChannels>;
+  return UPGRADE as WsyncApi<TChannels>;
 }
