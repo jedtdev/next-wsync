@@ -75,7 +75,7 @@ describe('ClientsAccessor flat API via channel integration', () => {
   const sockets: WebSocket[] = [];
 
   const queryChannel = channel('query', {
-    parameters: {
+    schema: {
       emit: z.unknown(),
       receive: z.object({
         action: z.string(),

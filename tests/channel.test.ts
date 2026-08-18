@@ -73,7 +73,7 @@ function send(ws: WebSocket, data: unknown) {
 // ── Channel definitions ───────────────────────────────────────
 
 const echoChannel = channel('echo', {
-  parameters: {
+  schema: {
     emit: z.unknown(),
     receive: z.object({ text: z.string() }),
   },
@@ -85,7 +85,7 @@ const echoChannel = channel('echo', {
 });
 
 const broadcastChannel = channel('broadcast', {
-  parameters: {
+  schema: {
     emit: z.unknown(),
     receive: z.object({ text: z.string() }),
   },
@@ -97,7 +97,7 @@ const broadcastChannel = channel('broadcast', {
 });
 
 const othersChannel = channel('others', {
-  parameters: {
+  schema: {
     emit: z.unknown(),
     receive: z.object({ text: z.string() }),
   },
@@ -109,7 +109,7 @@ const othersChannel = channel('others', {
 });
 
 const toChannel = channel('targeted', {
-  parameters: {
+  schema: {
     emit: z.unknown(),
     receive: z.object({ text: z.string(), role: z.string() }),
   },
@@ -121,7 +121,7 @@ const toChannel = channel('targeted', {
 });
 
 const disconnectChannel = channel('disconnect-me', {
-  parameters: {
+  schema: {
     emit: z.unknown(),
     receive: z.object({ text: z.string() }),
   },
@@ -228,7 +228,7 @@ describe('channel integration', () => {
   it('ctx.broadcast.to(selector) sends only to matching clients', async () => {
     const api2 = wsync([
       channel('targeted2', {
-        parameters: {
+        schema: {
           emit: z.unknown(),
           receive: z.object({ text: z.string(), role: z.string() }),
         },

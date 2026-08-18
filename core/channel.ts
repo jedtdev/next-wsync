@@ -76,11 +76,6 @@ export function channel<
       receive?: z.ZodType<TReceive>;
       meta?: z.ZodType<TMeta>;
     };
-    parameters?: {
-      emit: z.ZodType<TEmit>;
-      receive: z.ZodType<TReceive>;
-    };
-    meta?: z.ZodType<TMeta>;
     stores?: TStores;
     pubsub?: boolean;
     crons?: TCrons;
@@ -102,9 +97,9 @@ export function channel<
 } {
   const pubsub = def.pubsub ?? false;
 
-  const receiveSchema = def.schema?.receive ?? def.parameters?.receive;
+  const receiveSchema = def.schema?.receive;
   if (!receiveSchema) {
-    throw new Error(`Channel "${name}" requires a receive schema defined in schema or parameters.`);
+    throw new Error(`Channel "${name}" requires a receive schema defined in schema.receive.`);
   }
 
   // ── Stores ────────────────────────────────────────────────
