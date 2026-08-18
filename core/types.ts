@@ -4,6 +4,7 @@ import type { WebSocketServer } from 'ws';
 import type { PubSubAdapter } from './adapters';
 import type { symbols } from './constants';
 import type { Channel } from './channel';
+import type { CronJobLast } from './cron';
 import type { Stats } from './server';
 import type { MethodMap } from './storage';
 import type { ReadonlyHeaders, ReadonlyRequestsCookies } from './utils';
@@ -31,7 +32,9 @@ export interface CronControl {
   start(): void;
   stop(): void;
   trigger(): Promise<void>;
-  readonly running: boolean;
+  isRunning(): boolean;
+  getLastRun(): CronJobLast | null;
+  getNextRun(): Date | null;
 }
 
 // ── Selector ──────────────────────────────────────────────────
