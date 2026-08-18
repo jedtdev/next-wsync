@@ -1,5 +1,5 @@
 {
-  "name": "@jedtdev/next-wsync",
+  "name": "next-wsync",
   "version": "0.3.0",
   "description": "Typed channel-based WebSocket layer built on top of next-ws",
   "license": "MIT",
@@ -12,9 +12,6 @@
     "url": "https://github.com/jedtdev/next-wsync/issues"
   },
   "homepage": "https://github.com/jedtdev/next-wsync#readme",
-  "publishConfig": {
-    "access": "public"
-  },
   "type": "module",
   "workspaces": [
     "playground"

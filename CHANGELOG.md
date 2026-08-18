@@ -4,6 +4,10 @@ All notable changes to `next-wsync` will be documented in this file.
 
 ## [0.3.0] - 2026-08-19
 
+### 📦 Package
+
+- Renamed the published package from the scoped `@jedtdev/next-wsync` back to unscoped `next-wsync`, matching Next.js ecosystem convention (`next-auth`, `next-seo`, `next-ws`, etc.) and every import example already in this README. The scoped package (`0.2.0`, `0.2.1-beta.1`) is left published but unmaintained.
+
 ### ✨ New
 
 - **`useWsync().subscribe(cb)`**: register an additional message listener imperatively (e.g. from a `useEffect`) without going through the hook's `events.onMessage` option; returns an unsubscribe function.
@@ -22,7 +26,7 @@ No external consumers yet, so these ship without a deprecation shim.
 
 ### 🛠 Tooling
 
-- Playground app now resolves `@jedtdev/next-wsync` via an npm workspace `file:` link instead of a stale packed tarball, so it always tracks local source.
+- Playground app now resolves `next-wsync` via an npm workspace `file:` link instead of a stale packed tarball, so it always tracks local source.
 - Bumped `next-ws` to `2.2.11` and aligned the dev-only `next` version pin with the playground app to avoid duplicate-package type conflicts.
 
 ## [0.2.0] - 2026-08-07

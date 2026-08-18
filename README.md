@@ -2,6 +2,8 @@
 
 A typed, channel-based WebSocket layer for Next.js. Built on top of [`next-ws`](https://github.com/apteryxxyz/next-ws) and the [`ws`](https://github.com/websockets/ws) package.
 
+> Community project — not affiliated with Vercel or Next.js.
+
 ## Features
 
 - Typed channels with Zod-validated emit/receive payloads
@@ -15,7 +17,7 @@ A typed, channel-based WebSocket layer for Next.js. Built on top of [`next-ws`](
 ## Installation
 
 ```bash
-npm i @jedtdev/next-wsync next-ws && npx next-ws patch
+npm i next-wsync next-ws && npx next-ws patch
 ```
 
 `next-ws patch` modifies your local Next.js install to handle WebSocket upgrades. Re-run it after upgrading Next.js, or automate it:
