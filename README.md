@@ -97,7 +97,7 @@ import { wsync } from 'next-wsync'
 import { roomChannel } from './channels/room'
 
 export const api = wsync([roomChannel])
-export type AppRouter = typeof api
+export type WsyncRouter = typeof api
 ```
 
 ### 3. Mount the route handler
@@ -115,9 +115,9 @@ export { api as UPGRADE }
 // lib/wsync/client.tsx
 'use client'
 import { createClient } from 'next-wsync/client'
-import type { AppRouter } from './index'
+import type { WsyncRouter } from './index'
 
-export const { NextWsyncProvider, useWsync } = createClient<AppRouter>('/api/ws')
+export const { NextWsyncProvider, useWsync } = createClient<WsyncRouter>('/api/ws')
 ```
 
 ### 5. Consume the hook
@@ -168,13 +168,11 @@ Defines a typed channel. All event handlers receive a fully typed `ctx` object d
 import { channel } from 'next-wsync'
 
 const myChannel = channel('chat', {
-  // `parameters` + top-level `meta` (below) or `schema: { emit, receive, meta }`
-  // (as in the Quick start example) are interchangeable — use whichever reads better.
-  parameters: {
+  schema: {
     emit:    z.object({ ... }),   // data shape sent to clients
     receive: z.object({ ... }),   // data shape accepted from clients
+    meta:    z.object({ ... }),   // per-socket metadata schema
   },
-  meta:    z.object({ ... }),     // per-socket metadata schema
   stores:  [counterStore],        // typed storage instances
   pubsub:  true,                  // enable cross-instance pub/sub
   methods: (ctx) => ({            // reusable server-side helpers
@@ -321,7 +319,7 @@ export const api = wsync([roomChannel, adminChannel], {
   adapter: redis('redis://...'), // pub/sub adapter
 })
 
-export type AppRouter = typeof api
+export type WsyncRouter = typeof api
 ```
 
 The returned `api` object is callable as `(client, server, request) => void`. Export it as `UPGRADE` from a Next.js route handler — `next-ws` will invoke it on every WebSocket upgrade.
@@ -572,9 +570,9 @@ Creates a typed `NextWsyncProvider` and `useWsync` hook bound to your server's r
 // lib/wsync/client.tsx
 'use client'
 import { createClient } from 'next-wsync/client'
-import type { AppRouter } from './index'   // typeof api
+import type { WsyncRouter } from './index'   // typeof api
 
-export const { NextWsyncProvider, useWsync } = createClient<AppRouter>('/api/ws')
+export const { NextWsyncProvider, useWsync } = createClient<WsyncRouter>('/api/ws')
 ```
 
 ### `<NextWsyncProvider>`
@@ -719,11 +717,11 @@ These are the raw message shapes exchanged over the WebSocket. You do not need t
 import type { Infer, InferRouter, RouterEmit, RouterReceive } from 'next-wsync'
 
 // Infer the full router type from an api instance
-type AppRouter = Infer<typeof api>
+type WsyncRouter = Infer<typeof api>
 
 // Infer channel-level emit/receive from a router
-type RoomEmit    = RouterEmit<AppRouter, 'room'>
-type RoomReceive = RouterReceive<AppRouter, 'room'>
+type RoomEmit    = RouterEmit<WsyncRouter, 'room'>
+type RoomReceive = RouterReceive<WsyncRouter, 'room'>
 ```
 
 ### Exported types
