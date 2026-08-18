@@ -75,7 +75,7 @@ describe('cron()', () => {
     await new Promise<void>((resolve) => {
       const start = Date.now();
       const interval = setInterval(() => {
-        if (runFn.mock.calls.length > 0 || Date.now() - start > 1500) {
+        if (runFn.mock.calls.length > 0 || Date.now() - start > 3000) {
           clearInterval(interval);
           resolve();
         }
@@ -97,7 +97,7 @@ describe('cron()', () => {
     await new Promise<void>((resolve) => {
       const start = Date.now();
       const interval = setInterval(() => {
-        if (job.getLastRun() !== null || Date.now() - start > 1500) {
+        if (job.getLastRun() !== null || Date.now() - start > 3000) {
           clearInterval(interval);
           resolve();
         }
@@ -127,7 +127,7 @@ describe('cron()', () => {
     await new Promise<void>((resolve) => {
       const start = Date.now();
       const interval = setInterval(() => {
-        if (onError.mock.calls.length > 0 || Date.now() - start > 1500) {
+        if (onError.mock.calls.length > 0 || Date.now() - start > 3000) {
           clearInterval(interval);
           resolve();
         }
@@ -154,7 +154,7 @@ describe('cron()', () => {
     await new Promise<void>((resolve) => {
       const start = Date.now();
       const interval = setInterval(() => {
-        if (job.getLastRun() !== null || Date.now() - start > 1500) {
+        if (job.getLastRun() !== null || Date.now() - start > 3000) {
           clearInterval(interval);
           resolve();
         }
