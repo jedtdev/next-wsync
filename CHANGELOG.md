@@ -2,7 +2,7 @@
 
 All notable changes to `next-wsync` will be documented in this file.
 
-## [0.3.0] - 2026-08-18
+## [0.3.0-beta.1] - 2026-08-18
 
 ### ✨ New
 
