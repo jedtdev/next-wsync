@@ -44,7 +44,7 @@ npm i next-wsync next-ws && npx next-ws patch
 ### 1. Define a channel
 
 ```ts
-// lib/realtime/channels/room.ts
+// lib/wsync/channels/room.ts
 import { z } from 'zod'
 import { cookies, headers } from 'next/headers'
 import { auth } from '@/auth' // Native NextAuth v5 / Auth.js
@@ -92,7 +92,7 @@ export const roomChannel = channel('room', {
 ### 2. Create the server handler
 
 ```ts
-// lib/realtime/index.ts
+// lib/wsync/index.ts
 import { wsync } from 'next-wsync'
 import { roomChannel } from './channels/room'
 
@@ -104,7 +104,7 @@ export type AppRouter = typeof api
 
 ```ts
 // app/api/ws/[[...slug]]/route.ts
-import { api } from '@/lib/realtime'
+import { api } from '@/lib/wsync'
 
 export { api as UPGRADE }
 ```
@@ -112,7 +112,7 @@ export { api as UPGRADE }
 ### 4. Create the client binding
 
 ```tsx
-// lib/realtime/client.tsx
+// lib/wsync/client.tsx
 'use client'
 import { createClient } from 'next-wsync/client'
 import type { AppRouter } from './index'
@@ -125,7 +125,7 @@ export const { NextWsyncProvider, useWsync } = createClient<AppRouter>('/api/ws'
 ```tsx
 // app/room/page.tsx
 'use client'
-import { NextWsyncProvider, useWsync } from '@/lib/realtime/client'
+import { NextWsyncProvider, useWsync } from '@/lib/wsync/client'
 
 function RoomChat() {
   const { send, status, id } = useWsync('room', {
@@ -328,7 +328,7 @@ The returned `api` object is callable as `(client, server, request) => void`. Ex
 
 ```ts
 // app/api/ws/[[...slug]]/route.ts
-import { api } from '@/lib/realtime'
+import { api } from '@/lib/wsync'
 export { api as UPGRADE }
 ```
 
@@ -569,7 +569,7 @@ wsync(channels, { adapter: myAdapter })
 Creates a typed `NextWsyncProvider` and `useWsync` hook bound to your server's router type.
 
 ```tsx
-// lib/realtime/client.tsx
+// lib/wsync/client.tsx
 'use client'
 import { createClient } from 'next-wsync/client'
 import type { AppRouter } from './index'   // typeof api
@@ -583,7 +583,7 @@ Wrap your component tree (or subtree) with this provider. It pools WebSocket con
 
 ```tsx
 // app/layout.tsx
-import { NextWsyncProvider } from '@/lib/realtime/client'
+import { NextWsyncProvider } from '@/lib/wsync/client'
 
 export default function Layout({ children }) {
   return (
