@@ -27,6 +27,9 @@ export type {
 export { wsync } from './server';
 export type { WsyncOptions, Stats } from './server';
 
+// ── Constants ────────────────────────────────────────────────
+export { CloseCode } from './constants';
+
 // ── Adapters ──────────────────────────────────────────────────
 export { defineAdapter, redis, upstash, valkey } from './adapters';
 export type { AdapterDef, PubSubAdapter } from './adapters';

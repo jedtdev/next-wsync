@@ -11,7 +11,7 @@ import type {
   QuerySelector,
 } from './types';
 import { isExcluded, matchesSelector, sendEvent } from './utils';
-import { symbols } from './constants';
+import { CloseCode, symbols } from './constants';
 
 export type Schedule =
   | string
@@ -251,7 +251,7 @@ export function createChannelCron<
         const matched: WebSocket[] = [];
         for (const c of pool()) {
           if (matchesSelector(selector as QuerySelector, c)) {
-            if (c.readyState === WebSocket.OPEN) c.close(disconnectOpts?.code ?? 1000, disconnectOpts?.reason ?? '');
+            if (c.readyState === WebSocket.OPEN) c.close(disconnectOpts?.code ?? CloseCode.Normal, disconnectOpts?.reason ?? '');
             matched.push(c);
           }
         }

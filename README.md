@@ -258,7 +258,7 @@ ctx.clients.update({ userId: '123' }, { banned: true })
 ctx.clients.update({ room: 'lobby' }, prev => ({ ...prev, score: prev.score + 1 }))
 
 // Disconnect matching sockets (returns matched WebSocket[])
-ctx.clients.disconnect({ banned: true }, { code: 1008, reason: 'Banned' })
+ctx.clients.disconnect({ banned: true }, { code: CloseCode.PolicyViolation, reason: 'Banned' })
 
 // Count connected clients on this channel
 ctx.clients.size
@@ -336,11 +336,11 @@ export { api as UPGRADE }
 api.channels                            // ReadonlySet<string>
 
 const stats = api.stats
-stats.total()                           // total connected clients
-stats.channel()                         // { [channelName]: count }
-stats.channel('room')                   // count for one channel
-stats.ids()                             // string[] — all socket IDs
-stats.get(id)                           // WebSocket | undefined
+stats.getTotal()                        // total connected clients
+stats.getChannelCounts()                // { [channelName]: count }
+stats.getChannelCount('room')           // count for one channel
+stats.getIds()                          // string[] — all socket IDs
+stats.getClient(id)                     // WebSocket | undefined
 stats.filter(ws => ws.meta.role === 'admin') // WebSocket[]
 stats.query({ role: 'admin' }, 'room')  // selector query, optional channel scope
 stats.snapshot('room')                  // [{ id, meta }]
@@ -732,6 +732,7 @@ type RoomReceive = RouterReceive<WsyncRouter, 'room'>
 | `ChannelContext<TName, TEmit, TStores, TMeta, TCrons>` | Full context object passed to event handlers |
 | `ClientsAccessor<TEmit, TMeta>` | The `ctx.clients` object |
 | `DisconnectOptions` | `{ code?: number, reason?: string }` |
+| `CloseCode` | Enum of WebSocket close codes (RFC 6455 §7.4) — `CloseCode.Normal`, `CloseCode.PolicyViolation`, etc. |
 | `BroadcastOptions` | `{ except?: QuerySelector<TMeta> }` |
 | `QuerySelector<TMeta>` | MongoDB-style selector object (includes built-in `id` and `iat` fields) |
 | `QueryOp` | Union of supported operator keys (`$eq`, `$ne`, `$in`, etc.) |

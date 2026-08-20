@@ -4,7 +4,7 @@ import type { WebSocketServer } from 'ws';
 import type { PubSubAdapter } from './adapters';
 import type { Channel } from './channel';
 import type { CronJob } from './cron';
-import { symbols } from './constants';
+import { CloseCode, symbols } from './constants';
 import type { QuerySelector, WsyncApi } from './types';
 import { matchesSelector } from './utils';
 
@@ -13,11 +13,11 @@ import { Logger, type DebugOption, type LogLevel } from './logger';
 // ── Stats ─────────────────────────────────────────────────────
 
 export interface Stats {
-  total(): number;
-  channel(): Record<string, number>;
-  channel(name: string): number;
-  ids(): string[];
-  get(clientId: string): WebSocket | undefined;
+  getTotal(): number;
+  getChannelCounts(): Record<string, number>;
+  getChannelCount(name: string): number;
+  getIds(): string[];
+  getClient(clientId: string): WebSocket | undefined;
   filter(predicate: (client: WebSocket) => boolean): Array<WebSocket>;
   query(selector: QuerySelector, channelName?: string): Array<WebSocket>;
   snapshot(
@@ -113,18 +113,19 @@ class WsyncServer {
   // ── Stats ─────────────────────────────────────────────────
 
   readonly stats: Stats = {
-    total: () => this.clients.size,
+    getTotal: () => this.clients.size,
 
-    channel: ((name?: string): number | Record<string, number> => {
-      if (name !== undefined) return this.channels.get(name)?.size ?? 0;
+    getChannelCounts: () => {
       const counts: Record<string, number> = {};
       for (const [ch, set] of this.channels) counts[ch] = set.size;
       return counts;
-    }) as unknown as Stats['channel'],
+    },
 
-    ids: () => [...this.clients.keys()],
+    getChannelCount: (name) => this.channels.get(name)?.size ?? 0,
 
-    get: (clientId) => this.clients.get(clientId),
+    getIds: () => [...this.clients.keys()],
+
+    getClient: (clientId) => this.clients.get(clientId),
 
     filter: (predicate) => {
       const result: Array<WebSocket> = [];
@@ -190,7 +191,7 @@ class WsyncServer {
       if (this.adapter) void this.adapter.close();
       for (const client of this.clients.values()) {
         if (client.readyState === client.OPEN)
-          client.close(1001, 'Server shutting down');
+          client.close(CloseCode.GoingAway, 'Server shutting down');
       }
       this.clients.clear();
       this.channels.clear();
@@ -210,7 +211,7 @@ class WsyncServer {
     client.id = crypto.randomUUID();
     client.iat = Date.now();
     client.meta = {};
-    client.disconnect = (opts) => client.close(opts?.code ?? 1000, opts?.reason ?? '');
+    client.disconnect = (opts) => client.close(opts?.code ?? CloseCode.Normal, opts?.reason ?? '');
 
     const url = new URL(request.url);
     const channelName = url.pathname.split('/').at(-1) ?? '';
@@ -220,7 +221,7 @@ class WsyncServer {
 
     if (!handler) {
       upgradeLog.warn(`Rejected upgrade for unknown channel "${channelName}" (client: ${client.id})`);
-      client.close(1008, 'Unknown channel');
+      client.close(CloseCode.PolicyViolation, 'Unknown channel');
       return;
     }
 

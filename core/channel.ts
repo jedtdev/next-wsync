@@ -21,7 +21,7 @@ import type {
   ServerMessage,
 } from './types';
 import { isExcluded, matchesSelector, ReadonlyHeaders, ReadonlyRequestsCookies, sendEvent } from './utils';
-import { symbols } from './constants';
+import { CloseCode, symbols } from './constants';
 import { scopeStorage, type WsyncScope } from './scope';
 import { Logger } from './logger';
 
@@ -227,7 +227,7 @@ export function channel<
         const matched: WebSocket[] = [];
         for (const c of channelClients()) {
           if (matchesSelector(selector as QuerySelector, c)) {
-            if (c.readyState === WebSocket.OPEN) c.close(opts?.code ?? 1000, opts?.reason ?? '');
+            if (c.readyState === WebSocket.OPEN) c.close(opts?.code ?? CloseCode.Normal, opts?.reason ?? '');
             matched.push(c);
           }
         }
@@ -346,7 +346,7 @@ export function channel<
       log: scopeLog,
       reply(data) { sendEvent(raw.client, data); },
       broadcast,
-      disconnect(code = 1000, reason = '') { raw.client.close(code, reason); },
+      disconnect(code = CloseCode.Normal, reason = '') { raw.client.close(code, reason); },
     };
 
     return {

@@ -4,13 +4,13 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import WebSocket, { WebSocketServer } from 'ws';
 import { z } from 'zod';
 import { channel } from '../core/channel';
-import type { RealtimeApi } from '../core/types';
+import type { WsyncApi } from '../core/types';
 import { wsync } from '../core/server';
 
 // ── Test helpers ──────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function createTestServer(api: RealtimeApi<any>) {
+async function createTestServer(api: WsyncApi<any>) {
   const httpServer = createServer();
   const wss = new WebSocketServer({ server: httpServer });
 
