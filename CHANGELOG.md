@@ -4,6 +4,20 @@ All notable changes to `next-wsync` will be documented in this file.
 
 ## [0.4.0-beta.1] - 2026-08-21
 
+### ✨ New
+
+- **`CloseCode`**: exported enum of WebSocket close codes (RFC 6455 §7.4) for use in `{ code }` options passed to `disconnect()`.
+
+### ⚠️ Breaking Renames
+
+- **Stats API**: Renamed `api.stats` overloaded methods (`total()`, `channel()`, `ids()`, `get()`) to explicit getters (`getTotal()`, `getChannelCounts()`, `getChannelCount(name)`, `getIds()`, `getClient(id)`) for clear typing and clean ergonomics.
+
+### 🛠 Tooling
+
+- Added test coverage for `api.stats` and the pub/sub adapter layer (`buildAdapter`, `defineAdapter`) — previously untested.
+
+## [0.3.0] - 2026-08-19
+
 ### 📦 Package
 
 - Renamed the published package from the scoped `@jedtdev/next-wsync` back to unscoped `next-wsync`, matching Next.js ecosystem convention (`next-auth`, `next-seo`, `next-ws`, etc.) and every import example already in this README. The scoped package (`0.2.0`, `0.2.1-beta.1`) is left published but unmaintained.
@@ -11,7 +25,6 @@ All notable changes to `next-wsync` will be documented in this file.
 ### ✨ New
 
 - **`useWsync().subscribe(cb)`**: register an additional message listener imperatively (e.g. from a `useEffect`) without going through the hook's `events.onMessage` option; returns an unsubscribe function.
-- **`CloseCode`**: exported enum of WebSocket close codes (RFC 6455 §7.4) for use in `{ code }` options passed to `disconnect()`.
 
 ### ⚠️ Breaking Renames
 
@@ -19,7 +32,6 @@ No external consumers yet, so these ship without a deprecation shim.
 
 - **Client API**: `create()` → `createClient()`, `RealtimeProvider` → `NextWsyncProvider`, `useRealtime` → `useWsync`. Exported types `RealtimeOptions`/`RealtimeChannel`/`RealtimeApi` → `WsyncOptions`/`WsyncChannel`/`WsyncApi`, aligning names with the `next-wsync` package name.
 - **Cron API**: `job.last` → `job.getLastRun()`, `job.nextRun()` → `job.getNextRun()`, matching `isRunning()` as consistent method-style accessors on `CronJob`.
-- **Stats API**: Renamed `api.stats` overloaded methods (`total()`, `channel()`, `ids()`, `get()`) to explicit getters (`getTotal()`, `getChannelCounts()`, `getChannelCount(name)`, `getIds()`, `getClient(id)`) for clear typing and clean ergonomics.
 
 ### 📝 Docs
 
@@ -30,7 +42,6 @@ No external consumers yet, so these ship without a deprecation shim.
 
 - Playground app now resolves `next-wsync` via an npm workspace `file:` link instead of a stale packed tarball, so it always tracks local source.
 - Bumped `next-ws` to `2.2.11` and aligned the dev-only `next` version pin with the playground app to avoid duplicate-package type conflicts.
-- Added test coverage for `api.stats` and the pub/sub adapter layer (`buildAdapter`, `defineAdapter`) — previously untested.
 
 ## [0.2.0] - 2026-08-07
 
