@@ -13,7 +13,7 @@ export const symbols = Object.freeze({
   router: $router,
 } as const);
 
-// ── WebSocket close codes (RFC 6455 §7.4) ───────────────────────
+// ── WebSocket close codes (RFC 6455 sec. 7.4) ────────────────────
 // 1005, 1006, 1015 are reserved — they describe how a connection ended
 // but can never be sent in an actual close frame.
 export enum CloseCode {

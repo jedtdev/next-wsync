@@ -732,7 +732,7 @@ type RoomReceive = RouterReceive<WsyncRouter, 'room'>
 | `ChannelContext<TName, TEmit, TStores, TMeta, TCrons>` | Full context object passed to event handlers |
 | `ClientsAccessor<TEmit, TMeta>` | The `ctx.clients` object |
 | `DisconnectOptions` | `{ code?: number, reason?: string }` |
-| `CloseCode` | Enum of WebSocket close codes (RFC 6455 §7.4) — `CloseCode.Normal`, `CloseCode.PolicyViolation`, etc. |
+| `CloseCode` | Enum of WebSocket close codes (RFC 6455 sec. 7.4) — `CloseCode.Normal`, `CloseCode.PolicyViolation`, etc. |
 | `BroadcastOptions` | `{ except?: QuerySelector<TMeta> }` |
 | `QuerySelector<TMeta>` | MongoDB-style selector object (includes built-in `id` and `iat` fields) |
 | `QueryOp` | Union of supported operator keys (`$eq`, `$ne`, `$in`, etc.) |

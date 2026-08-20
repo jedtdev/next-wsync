@@ -6,7 +6,7 @@ All notable changes to `next-wsync` will be documented in this file.
 
 ### ✨ New
 
-- **`CloseCode`**: exported enum of WebSocket close codes (RFC 6455 §7.4) for use in `{ code }` options passed to `disconnect()`.
+- **`CloseCode`**: exported enum of WebSocket close codes (RFC 6455 sec. 7.4) for use in `{ code }` options passed to `disconnect()`.
 
 ### ⚠️ Breaking Renames
 
